@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tileset Studio</title>
+<title>Crispy Tileset Studio</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 /* Liquid glass su un cielo al tramonto (Pokémon Sunset): pannelli di vetro scuro con riflessi chiari,
@@ -274,7 +274,7 @@ select option{background:#1e1838;color:var(--text)}
 </head>
 <body>
 <header>
-  <h1>Tileset Studio</h1>
+  <h1>Crispy Tileset Studio</h1>
   <span class="seg" id="modeSeg" title="Nuovo tileset: parti da zero. Aggiungi: la nuova grafica entra in un tileset che esiste già nella ROM."><button data-m="new" class="on">Nuovo tileset</button><button data-m="add">Aggiungi a esistente</button></span>
   <span class="spacer"></span>
   <button id="btnOpen" class="ghost">Apri progetto</button>
@@ -366,7 +366,7 @@ select option{background:#1e1838;color:var(--text)}
     <li>Apri la ROM in HexManiacAdvance.</li>
     <li>Se il campo "Mappa HMA" era vuoto, apri prima nell'editor mappe la mappa di destinazione.</li>
     <li><b>Torna alla vista esadecimale</b> (la griglia di byte): nell'editor mappe usa la freccia <b>Indietro</b>. Se trascini sulla mappa, HMA apre il file come se fosse una ROM e non succede niente.</li>
-    <li>Trascina il file .hma sulla finestra. Mentre lo trascini deve comparire la descrizione dello script ("Tileset Studio - importa…"): se non compare, sei nella vista sbagliata.</li>
+    <li>Trascina il file .hma sulla finestra. Mentre lo trascini deve comparire la descrizione dello script ("Crispy Tileset Studio - importa…"): se non compare, sei nella vista sbagliata.</li>
     <li>Scegli nel dialogo (solo questa mappa / tutte / annulla), poi controlla la mappa. Ctrl+S salva, Ctrl+Z annulla tutto.</li>
   </ol>
   <p class="small muted">Se avevi già trascinato il file sulla mappa, chiudi senza salvare la scheda che HMA ha aperto con il nome del file .hma.</p>
@@ -664,27 +664,38 @@ function run(decisions){
   }
   // tile finali (4bpp) con deduplica anche tra palette diverse
   const fkey={P:new Map(), S:new Map()};
-  const recycle = add && decisions.some(d=>d.kind==='recycle') ? [...(state.exInfo.groups.S.unusedTiles||[])] : [];
+  let recycle=[];
   const pushFinal=(G,arr,key,bin)=>{
     let n=groups[G].finals.length;
     if(G==='S' && recycle.length){ n=recycle.shift(); groups.S.finals[n]={data:arr, bin, recycled:true}; }
     else groups[G].finals.push({data:arr, bin});
     const ref={g:G,n}; fkey[G].set(key,ref); return ref;
   };
+  const canonFinal=u=>{
+    if(!u.cf){ const pm=groups[u.bin.g].palMap[u.bin.b], data=new Uint8Array(64); for(let i=0;i<64;i++) data[i]= u.px[i]===TRANSP?0:pm.get(u.px[i]); u.cf=canon(data,Uint8Array); }
+    return u.cf;
+  };
   if(add){
-    // i tile esistenti entrano nella lista (stessi numeri che hanno nella ROM) e si possono riusare
+    // i tile esistenti entrano nella lista (stessi numeri che hanno nella ROM) e si possono riusare; a parità di disegno vince un tile usato dai blocchi
+    const unused=new Set(state.exInfo.groups.S.unusedTiles||[]);
     for(const [G,tiles] of [['P',state.exInfo.tP],['S',state.exInfo.tS]]){
       if(!tiles) continue;
-      tiles.forEach((t,k)=>{ groups[G].finals.push({data:t, bin:null, existing:true}); const c=canon(t,Uint8Array); if(!fkey[G].has(c.key)) fkey[G].set(c.key,{g:G,n:k,f:c.f}); });
+      tiles.forEach(t=>groups[G].finals.push({data:t, bin:null, existing:true}));
+      const ks=tiles.map((t,k)=>k); if(G==='S') ks.sort((a,b)=>unused.has(a)-unused.has(b)||a-b);
+      for(const k of ks){ const c=canon(tiles[k],Uint8Array); if(!fkey[G].has(c.key)) fkey[G].set(c.key,{g:G,n:k,f:c.f}); }
       groups[G].exTiles=tiles.length;
+    }
+    // i tile nuovi riempiono il tileset dall'alto: prima i tile che nessun blocco usa, poi in coda (salvo i tile liberi che la grafica nuova riusa così come sono)
+    if(!decisions.some(d=>d.kind==='keepUnused')){
+      const reused=new Set();
+      for(const u of utiles){ if(u.group!=='S') continue; const c=canonFinal(u), r=fkey.P.get(c.key)||fkey.S.get(c.key); if(r&&r.g==='S') reused.add(r.n); }
+      recycle=[...unused].filter(k=>!reused.has(k)).sort((a,b)=>a-b);
     }
   } else if(groups.P.used){ const z=new Uint8Array(64); pushFinal('P',z,z.join(','),{g:'P',b:0}); }
   for(const im of imgs) for(const cell of im.seq) for(const part of cell.parts){
     const u=utiles[part.u];
     if(!u.final){
-      const pm=groups[u.bin.g].palMap[u.bin.b], data=new Uint8Array(64);
-      for(let i=0;i<64;i++) data[i]= u.px[i]===TRANSP?0:pm.get(u.px[i]);
-      const c=canon(data,Uint8Array);
+      const c=canonFinal(u);
       let ref=(u.group==='S'&&fkey.P.get(c.key)) || fkey[u.group].get(c.key);
       if(!ref) ref=pushFinal(u.group,c.arr,c.key,u.bin);
       u.final={ref:{g:ref.g,n:ref.n}, f:c.f^(ref.f||0)};   // ref.f: orientamento di un tile esistente rispetto alla forma canonica
@@ -918,9 +929,11 @@ async function addSuggestions(res,out,token){
   await tick(); if(token!==state.suggToken) return;
   const ne=nearExistingSubs(res);
   if(ne.length){ const r2=run([...state.decisions,{kind:'sub',subs:ne}]), a2=groupStats(r2,'S'); if(a2.pals<st.pals || a2.colors<st.colors) out.push({kind:'nearEx', group:'S', subs:ne, before:st, after:a2, res2:r2, st:subsStats(res,ne)}); }
-  // c) tile finiti: riciclare quelli che nessun blocco usa?
+  // c) tile nuovi nei posti liberi del tileset (tile che nessun blocco usa): di base sì, dall'alto; chi li vuole in coda lo sceglie
   const exT=state.exInfo.tS.length, unused=(state.exInfo.groups.S.unusedTiles||[]).length, over=exT+st.tiles-st.recycled-GROUPS.S.maxTiles;
-  if(over>0 && unused && !state.decisions.some(d=>d.kind==='recycle')) out.push({kind:'recycle', group:'S', need:over, unused});
+  const keep=state.decisions.some(d=>d.kind==='keepUnused');
+  if(keep && over>0 && unused) out.push({kind:'recycle', group:'S', need:over, unused});
+  if(!keep && st.recycled){ const ks=res.groups.S.finals.map((f,k)=>f&&f.recycled?k:-1).filter(k=>k>=0); out.push({kind:'topFill', group:'S', n:st.recycled, first:ks[0], last:ks[ks.length-1], atEnd:exT+st.tiles-GROUPS.S.maxTiles}); }
   // d) posizionamento dei blocchi
   const pl=res.blocks.place;
   for(const im of res.imgs){
@@ -1053,7 +1066,7 @@ function renderBudgetAdd(box,res){
   box.append(el('div',{class:'bgroup'},
     el('div',{class:'bhead'}, el('b',{},'Secondario esistente'), status),
     el('div',{class:'brow'}, el('span',{class:'muted'},'Tile'), bar(exT,newT,cfg.maxTiles,overT?' bad':tTot/cfg.maxTiles>.9?' warn':''), el('span',{class:overT?'over':''}, `${exT}+${newT} / ${cfg.maxTiles}`)),
-    st.recycled ? el('div',{class:'small faint'}, `${st.recycled} tile nuovi messi al posto di tile non usati (riciclati).`) : null,
+    st.recycled ? el('div',{class:'small faint'}, `${st.recycled} tile nuovi messi nei posti liberi del tileset (tile che nessun blocco usa).`) : null,
     el('div',{class:'brow'}, el('span',{class:'muted'},'Blocchi'), bar(exB,st.blocks,MAX_BLOCKS.S,overB?' bad':bTot/MAX_BLOCKS.S>.9?' warn':''), el('span',{class:overB?'over':''}, `${exB}+${st.blocks} / ${MAX_BLOCKS.S}`)),
     st.overwrite ? el('div',{class:'small',style:'color:#ffd37a'}, `${st.overwrite} blocchi nuovi finiscono al posto di blocchi esistenti.`) : null,
     st.unplacedBlocks ? el('div',{class:'small over'}, `${st.unplacedBlocks} blocchi nuovi non trovano posto.`) : null,
@@ -1384,8 +1397,8 @@ function renderExistingSheet(cv,G){
   if(G==='S' && info.groups.S.unusedTiles){ ctx.strokeStyle='rgba(240,180,41,.85)'; for(const k of info.groups.S.unusedTiles) if(!(finals&&finals[k]&&finals[k].recycled)) ctx.strokeRect((k%16)*24+1.5,Math.floor(k/16)*24+1.5,21,21); }
   if(finals){ ctx.strokeStyle='#6ea8fe'; finals.forEach((f,k)=>{ if(f&&!f.existing) ctx.strokeRect((k%16)*24+1.5,Math.floor(k/16)*24+1.5,21,21); }); }
   ctx.fillStyle='rgba(255,255,255,.07)'; for(let x=1;x<16;x++) ctx.fillRect(x*24,0,1,cv.height); for(let y=1;y<rows;y++) ctx.fillRect(0,y*24,cv.width,1);
-  const nNew=finals?finals.filter(f=>f&&!f.existing).length:0;
-  $('#tsInfo').textContent=`${tiles.length} tile esistenti`+(finals?` + ${nNew} nuovi`:'')+` · ${GROUPS[G].maxTiles-n} posti liberi`;
+  const nNew=finals?finals.filter(f=>f&&!f.existing).length:0, nRec=finals?finals.filter(f=>f&&f.recycled).length:0;
+  $('#tsInfo').textContent=`${tiles.length} tile esistenti`+(finals?` + ${nNew} nuovi`+(nRec?` (${nRec} nei posti liberi)`:''):'')+` · ${GROUPS[G].maxTiles-n} posti liberi`;
   $('#tsNote').textContent='Tile colorati con la palette del primo blocco che li usa (grigi se nessun blocco caricato li usa).'+(G==='S'?' Giallo: tile che nessun blocco usa.':'')+(finals?' Blu: tile nuovi.':'');
   return true;
 }
@@ -1473,9 +1486,20 @@ function renderSuggestions(){
     if(s.kind==='recycle'){
       box.append(el('div',{class:'sugg need'},
         el('h3',{}, `Tile finiti: ne mancano ${s.need}`),
-        el('p',{html:`Il secondario esistente non ha più posto per i tile nuovi. Ci sono però <b>${s.unused}</b> tile che nessun blocco del secondario usa: posso mettere lì i tile nuovi.`+(s.unused<s.need?` <b>Non bastano del tutto</b>: ne mancherebbero ancora ${s.need-s.unused} (riduci la grafica o libera tile in HMA).`:'')}),
-        el('p',{html:`<b>Attenzione:</b> controlla prima che non servano alle <b>animazioni del tileset</b> (acqua, fiori…), che copiano i fotogrammi in alcuni tile, o a un altro tileset che condivide gli stessi dati. Nel pannello "Generato → Tile" sono quelli con il bordo giallo.`}),
-        el('div',{class:'acts'}, el('button',{class:'primary small',onclick:()=>applyDecision({kind:'recycle',label:`Tile nuovi al posto dei ${s.unused} tile non usati`})},'Ricicla i tile non usati'), el('button',{class:'small',onclick:()=>{ state.tsKind='tiles'; state.tsTab='S'; renderTileset(); }},'Mostrameli'), ignore)));
+        el('p',{html:`Hai scelto di mettere i tile nuovi in coda, ma in coda non c'è più posto. Ci sono però <b>${s.unused}</b> tile che nessun blocco del secondario usa: posso mettere lì i tile nuovi, partendo dall'alto.`+(s.unused<s.need?` <b>Non bastano del tutto</b>: ne mancherebbero ancora ${s.need-s.unused} (riduci la grafica o libera tile in HMA).`:'')}),
+        el('div',{class:'acts'}, el('button',{class:'primary small',onclick:()=>{ state.decisions=state.decisions.filter(d=>d.kind!=='keepUnused'); recompute(); }},'Usa i posti liberi'), el('button',{class:'small',onclick:()=>{ state.tsKind='tiles'; state.tsTab='S'; renderTileset(); }},'Mostrameli'), ignore)));
+      continue;
+    }
+    if(s.kind==='topFill'){
+      const range=s.first===s.last?hex3(0x280+s.first):`${hex3(0x280+s.first)}–${hex3(0x280+s.last)}`;
+      box.append(el('div',{class:'sugg'},
+        el('h3',{}, `${s.n} tile nuovi nei posti liberi del tileset`),
+        el('p',{html:`Il tileset si riempie dall'alto: i tile nuovi prendono il posto dei tile che nessun blocco del secondario usa (${range}), poi vanno in coda. Nel pannello "Generato → Tile" i tile nuovi hanno il bordo blu.`}),
+        el('p',{html:`<b>Controlla</b> che quei tile non servano alle <b>animazioni del tileset</b> (acqua, fiori…), che copiano i fotogrammi in alcuni tile.`+(s.atEnd>0?` Se li metti in coda, <b>${s.atEnd} tile non ci stanno</b>.`:` Se preferisci, li metto in coda e i tile liberi restano com'erano.`)}),
+        el('div',{class:'acts'},
+          el('button',{class:'small',onclick:()=>{ state.tsKind='tiles'; state.tsTab='S'; renderTileset(); }},'Mostrameli'),
+          el('button',{class:'small',onclick:()=>applyDecision({kind:'keepUnused',label:'Tile nuovi in coda (i tile non usati restano com\'erano)'})},'Mettili in coda'),
+          el('button',{class:'ghost small',onclick:()=>{ state.ignored.add(sigOf(s)); renderSuggestions(); }},'Va bene così'))));
       continue;
     }
     if(s.kind==='placeOver'){
@@ -1921,14 +1945,14 @@ $('#fileProj').onchange=async e=>{
     state.placeMode=proj.placeMode||'rect';
     state.bgCands=(proj.bgCands||[]).filter(c=>idMap.has(c.imageId)).map(c=>({...c,imageId:idMap.get(c.imageId)}));
     state.blockLayout=proj.blockLayout||'compact';
-    state.decisions=proj.decisions.map(d=>{ const nd={...d,id:nextId++}; if(d.kind==='sub') nd.subs=d.subs.map(s=>({...s,imageId:idMap.get(s.imageId)})).filter(s=>s.imageId); else nd.imageId=idMap.get(d.imageId); return nd; });
+    state.decisions=proj.decisions.filter(d=>d.kind!=='recycle').map(d=>{ const nd={...d,id:nextId++}; if(d.kind==='sub') nd.subs=d.subs.map(s=>({...s,imageId:idMap.get(s.imageId)})).filter(s=>s.imageId); else nd.imageId=idMap.get(d.imageId); return nd; });   // 'recycle' (progetti vecchi) ora è il comportamento di base
     state.ignored=new Set(proj.ignored||[]);
     state.mode=proj.mode||'new'; document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('on',x.dataset.m===state.mode));
     state.existing={P:emptyEx(), S:emptyEx()};
     for(const G of ['P','S']) if(proj.existing&&proj.existing[G]&&proj.existing[G].length) addExistingFiles(G, proj.existing[G].map(f=>({name:f.name, data:fromB64(f.b64)})), true);
     state.exInfo=analyzeExisting();
     recompute();
-  }catch(err){ toast('Questo file non è un progetto di Tileset Studio (.json salvato con "Salva progetto").',true); }
+  }catch(err){ toast('Questo file non è un progetto di Crispy Tileset Studio (.json salvato con "Salva progetto").',true); }
 };
 
 // ============================================================ esportazione
@@ -1979,7 +2003,7 @@ function toast(msg,bad){ const t=$('#toast'); t.textContent=msg; t.classList.tog
 async function buildExport(res){
   const files=[], enc=new TextEncoder(), add=(name,data)=>files.push({name, data: typeof data==='string'?enc.encode(data):data});
   const blobBytes=async b=>new Uint8Array(await b.arrayBuffer());
-  let info=`Tileset Studio — esportazione del ${new Date().toLocaleString('it-IT')}\n\n`;
+  let info=`Crispy Tileset Studio — esportazione del ${new Date().toLocaleString('it-IT')}\n\n`;
   for(const G of ['P','S']){
     const g=res.groups[G], cfg=GROUPS[G], pre=G==='P'?'primario':'secondario';
     if(!g.finals.length) continue;
@@ -2099,7 +2123,7 @@ def _ts_write(model, hist, bs, d):
     total = o_a + len(attrs)
     start = model.FindFreeSpace(model.FreeSpaceStart, total)
     if start < 0:
-        raise Exception("Tileset Studio: non c'e' abbastanza spazio libero nella ROM (servono %d byte)." % total)
+        raise Exception("Crispy Tileset Studio: non c'e' abbastanza spazio libero nella ROM (servono %d byte)." % total)
     tok = hist.CurrentChange
     tok.ChangeData(model, start, tdata)
     tok.ChangeData(model, start + o_p, _ts_arr(pal))
@@ -2161,7 +2185,7 @@ def _ts_store(model, hist, bs, tiles, pal, blocks, attrs):
     total = o_a + len(attrs)
     start = model.FindFreeSpace(model.FreeSpaceStart, total)
     if start < 0:
-        raise Exception("Tileset Studio: non c'e' abbastanza spazio libero nella ROM (servono %d byte)." % total)
+        raise Exception("Crispy Tileset Studio: non c'e' abbastanza spazio libero nella ROM (servono %d byte)." % total)
     tok = hist.CurrentChange
     tok.ChangeData(model, start, tdata)
     tok.ChangeData(model, start + o_p, _ts_arr(pal))
@@ -2198,7 +2222,7 @@ def _ts_main():
     if vp is not None and hasattr(vp, "PrimaryMap") and hasattr(vp, "ViewPort"):
         vp = vp.ViewPort
     if vp is None or not hasattr(vp, "Model"):
-        raise Exception("Tileset Studio: apri prima la ROM in HMA.")
+        raise Exception("Crispy Tileset Studio: apri prima la ROM in HMA.")
     model = vp.Model
     hist = vp.ChangeHistory
     tf = Func[ModelDelta](lambda: hist.CurrentChange)
@@ -2207,12 +2231,12 @@ def _ts_main():
     else:
         me = vp.MapEditor
         if me is None or me.PrimaryMap is None:
-            raise Exception("Tileset Studio: apri prima la mappa nell'editor mappe di HMA, torna alla vista esadecimale e trascina di nuovo questo file (oppure scrivi banco.mappa nel tool).")
+            raise Exception("Crispy Tileset Studio: apri prima la mappa nell'editor mappe di HMA, torna alla vista esadecimale e trascina di nuovo questo file (oppure scrivi banco.mappa nel tool).")
         mid = me.PrimaryMap.MapID
         g, m = mid // 1000, mid % 1000
     mp = BlockMapViewModel.GetMapModel(model, g, m, tf)
     if mp is None:
-        raise Exception("Tileset Studio: la mappa %d.%d non esiste in questa ROM." % (g, m))
+        raise Exception("Crispy Tileset Studio: la mappa %d.%d non esiste in questa ROM." % (g, m))
     layout = mp.GetSubTable("layout")[0]
     if TS_MODE == "add":
         return _ts_main_add(vp, model, hist, layout, g, m)
@@ -2235,11 +2259,11 @@ def _ts_main():
                 _ts_option(1, "Importa nella mappa %d.%d" % (g, m), "Tileset %s" % label, "Il tileset %s e' usato solo da questa mappa: viene sostituito." % label),
                 cancel])
             prompt = "Importare il nuovo tileset %s nella mappa %d.%d?" % (label, g, m)
-        choice = editor.FileSystem.ShowOptions("Tileset Studio", prompt, None, options)
+        choice = editor.FileSystem.ShowOptions("Crispy Tileset Studio", prompt, None, options)
         if choice == 0:
             copy = True
         elif choice != 1:
-            return "Tileset Studio: importazione annullata, la ROM non e' stata modificata."
+            return "Crispy Tileset Studio: importazione annullata, la ROM non e' stata modificata."
         plan.append((key, field, label, copy))
     lines = []
     for key, field, label, copy in plan:
@@ -2260,7 +2284,7 @@ def _ts_main():
             me.PrimaryMap.ClearCaches()
     vp.Refresh()
     nl = chr(10)
-    return "Tileset Studio: mappa %d.%d aggiornata." % (g, m) + nl + nl.join(lines) + nl + "Controlla la mappa, poi Ctrl+S per salvare oppure Ctrl+Z per annullare."
+    return "Crispy Tileset Studio: mappa %d.%d aggiornata." % (g, m) + nl + nl.join(lines) + nl + "Controlla la mappa, poi Ctrl+S per salvare oppure Ctrl+Z per annullare."
 
 def _ts_refresh(vp):
     me = vp.MapEditor
@@ -2276,7 +2300,7 @@ def _ts_main_add(vp, model, hist, layout, g, m):
     bs = layout.GetSubTable("blockdata2")[0]
     ex, err = _ts_existing(model, bs, d)
     if ex is None:
-        raise Exception("Tileset Studio: il secondario della mappa %d.%d non corrisponde agli export caricati nel tool (%s). Riesporta da HMA tileset, palette e blocchi di questa mappa, ricaricali nel tool e rigenera lo script. La ROM non e' stata modificata." % (g, m, err))
+        raise Exception("Crispy Tileset Studio: il secondario della mappa %d.%d non corrisponde agli export caricati nel tool (%s). Riesporta da HMA tileset, palette e blocchi di questa mappa, ricaricali nel tool e rigenera lo script. La ROM non e' stata modificata." % (g, m, err))
     users = _ts_users(model, bs.Start)
     cancel = _ts_option(2, "Annulla", "Non scrivere niente", "Esci senza modificare la ROM.")
     if users > 1:
@@ -2290,9 +2314,9 @@ def _ts_main_add(vp, model, hist, layout, g, m):
             _ts_option(1, "Aggiungi alla mappa %d.%d" % (g, m), "Tileset secondario", "Aggiunge la nuova grafica al tileset di questa mappa."),
             cancel])
         prompt = "Aggiungere la nuova grafica al tileset secondario della mappa %d.%d?" % (g, m)
-    choice = editor.FileSystem.ShowOptions("Tileset Studio", prompt, None, options)
+    choice = editor.FileSystem.ShowOptions("Crispy Tileset Studio", prompt, None, options)
     if choice not in (0, 1):
-        return "Tileset Studio: importazione annullata, la ROM non e' stata modificata."
+        return "Crispy Tileset Studio: importazione annullata, la ROM non e' stata modificata."
     copy = choice == 0
     if copy:
         new = MapRepointer.DuplicateData(model, hist, bs.Start, 24)
@@ -2302,7 +2326,7 @@ def _ts_main_add(vp, model, hist, layout, g, m):
     hist.ChangeCompleted()
     _ts_refresh(vp)
     nl = chr(10)
-    msg = "Tileset Studio: grafica aggiunta al secondario della mappa %d.%d%s." % (g, m, " (copia solo per questa mappa)" if copy else (" e delle altre %d mappe che lo usano" % (users - 1) if users > 1 else ""))
+    msg = "Crispy Tileset Studio: grafica aggiunta al secondario della mappa %d.%d%s." % (g, m, " (copia solo per questa mappa)" if copy else (" e delle altre %d mappe che lo usano" % (users - 1) if users > 1 else ""))
     msg += nl + "%d tile nuovi, %d colori nuovi, %d blocchi (%d al posto di blocchi esistenti), scritti a %06X (%d byte)." % (d["newTiles"], len(d["pal"]), len(d["blocks"]), d["overwrite"], start, total)
     return msg + nl + "Controlla la mappa, poi Ctrl+S per salvare oppure Ctrl+Z per annullare."
 
@@ -2339,7 +2363,7 @@ function buildHma(res, target){
     head.push(`# ${GROUPS[G].name}: ${g.finals.length} tile, palette ${ts[G].slots}, ${bl.length} blocchi`);
   }
   const lines=[
-    '# Tileset Studio - importa tileset, palette e blocchi in HexManiacAdvance',
+    '# Crispy Tileset Studio - importa tileset, palette e blocchi in HexManiacAdvance',
     `# Mappa: ${target?target.join('.'):"quella aperta nell'editor mappe di HMA"}`,
     ...head,
     "# I dati vanno in spazio libero: quelli vecchi non vengono toccati.",
@@ -2383,7 +2407,7 @@ function buildHmaAdd(res, target){
   const d={exTiles, exBlocks, hashTiles:fnv32(e.tiles.subarray(0,exTiles*32)), hashBlocks:fnv32(e.blocksFile.subarray(0,exBlocks*16)), hashPals:fnv32(palVals),
     ntiles:g.finals.length, nblocks:Math.max(exBlocks,maxSlot+1), tiles, pal, blocks, newTiles:tiles.length, overwrite:pl.overwrite};
   const lines=[
-    '# Tileset Studio - aggiunge grafica a un tileset secondario esistente (HexManiacAdvance)',
+    '# Crispy Tileset Studio - aggiunge grafica a un tileset secondario esistente (HexManiacAdvance)',
     `# Mappa: ${target?target.join('.'):"quella aperta nell'editor mappe di HMA"}`,
     `# Aggiunge: ${tiles.length} tile, ${pal.length} colori nei posti liberi, ${blocks.length} blocchi${pl.overwrite?` (${pl.overwrite} al posto di blocchi esistenti)`:''}`,
     "# Prima controlla che il secondario nella ROM sia quello degli export caricati nel tool.",
@@ -2402,8 +2426,8 @@ function buildHmaAdd(res, target){
 }
 function addReadme(res){
   const pl=res.blocks.place, st=groupStats(res,'S');
-  let t=`Tileset Studio — aggiunta al secondario esistente (${new Date().toLocaleString('it-IT')})\n\n`;
-  t+=`Tile nuovi: ${st.tiles}${st.recycled?` (di cui ${st.recycled} al posto di tile non usati)`:''}\nColori nuovi: ${st.colors}\nBlocchi: ${pl.taken.size}${pl.overwrite?` (${pl.overwrite} sostituiscono blocchi esistenti)`:''}\n\n`;
+  let t=`Crispy Tileset Studio — aggiunta al secondario esistente (${new Date().toLocaleString('it-IT')})\n\n`;
+  t+=`Tile nuovi: ${st.tiles}${st.recycled?` (di cui ${st.recycled} nei posti liberi del tileset, al posto di tile che nessun blocco usava)`:''}\nColori nuovi: ${st.colors}\nBlocchi: ${pl.taken.size}${pl.overwrite?` (${pl.overwrite} sostituiscono blocchi esistenti)`:''}\n\n`;
   t+='Colori scritti nei posti liberi delle palette:\n';
   for(let s=7;s<13;s++) for(const a of res.groups.S.added[s]) t+=`  palette ${s}, colore ${a.idx}: ${gbaHex(a.color)}\n`;
   t+='\nPosizione dei blocchi per immagine (numero in HMA, riga per riga; ---- = vuoto):\n';
@@ -2554,6 +2578,22 @@ async function selftest(){
   ok(gA.finals.slice(0,ai.tS.length).every(f=>f.existing),'aggiungi: tile esistenti al loro posto');
   ok(fnv32([0x61])===0xE40C292C && fnv32([])===0x811C9DC5, 'impronta FNV-1a come in Python');
   const addScript=buildHmaAdd(ra,[4,0]); ok(addScript.includes('TS_MODE = "add"') && addScript.includes('"exTiles":'+ai.tS.length), 'script "aggiungi" generato');
+  // 7) tile nuovi dall'alto: secondario con 2 tile liberi in cima (il primo identico a un tile nuovo), poi il tile usato
+  const nw=ra.groups.S.finals.filter(f=>!f.existing);
+  if(nw.length>=2){
+    const pk4=d=>{ const u=new Uint8Array(32); for(let p=0;p<64;p+=2) u[p>>1]=d[p]|(d[p+1]<<4); return u; };
+    const filler=new Uint8Array(64).fill(4), tS3=new Uint8Array(96); tS3.set(pk4(nw[0].data),0); tS3.set(pk4(filler),32); tS3.set(tSe,64);
+    const blk3=blk.slice(); new DataView(blk3.buffer).setUint16(0,(7<<12)|642,true);   // blocco 0: ora usa il tile 642
+    addExistingFiles('S',[{name:'sec_tileset.bin',data:tS3},{name:'sec_blocchi.bin',data:blk3}],true);
+    ok(state.exInfo.groups.S.unusedTiles.join()==='0,1','dall\'alto: tile 0 e 1 liberi');
+    const rt=run([]), fT=rt.groups.S.finals;
+    let reconT=0; for(const im of rt.imgs){ const r=renderResult(rt,im).data; for(const cell of im.seq){ if(cell.ov) continue; for(let y=0;y<8;y++) for(let x=0;x<8;x++){ const c=im.px[(cell.ty*8+y)*im.W+cell.tx*8+x], o=((cell.ty*8+y)*im.W+cell.tx*8+x)*4; const got=r[o+3]?rgbToGba(r[o],r[o+1],r[o+2]):TRANSP; if(got!==c) reconT++; } } }
+    ok(fT[0].existing && fT[1].recycled && fT[2].existing && fT.length===3+nw.length-2, 'dall\'alto: tile libero riusato intatto, il nuovo va nel primo posto libero, poi in coda');
+    ok(reconT===0, 'dall\'alto: ricostruzione esatta ('+reconT+')');
+    const rk=run([{kind:'keepUnused'}]), fK=rk.groups.S.finals;
+    ok(fK.slice(0,3).every(f=>f.existing) && !fK.some(f=>f.recycled), '"in coda": tile liberi intatti');
+    addExistingFiles('S',[{name:'sec_tileset.bin',data:tSe},{name:'sec_blocchi.bin',data:blk}],true);
+  } else ok(false,'dall\'alto: servono almeno 2 tile nuovi nel test');
   state.mode=prevMode; state.images.forEach((i,k)=>i.target=prevTargets[k]);
   state.existing=saveEx; state.exInfo=analyzeExisting();
   $('#selftest').hidden=false; $('#selftest').textContent=log.join('\n');

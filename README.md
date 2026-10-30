@@ -1,4 +1,4 @@
-# Tileset Studio
+# Crispy Tileset Studio
 
 Strumento web per preparare **tileset, palette e blocchi di Pokémon FireRed** (GBA) partendo da immagini PNG a colori pieni.
 
@@ -24,6 +24,7 @@ Gira tutto nel browser: le immagini e i file che carichi non vengono inviati da 
 **Aggiungi a esistente**: carichi i file esportati da HMA (tileset `.bin`, blocchi `.bin`, palette `.pal`) e la nuova grafica entra nel tileset che hai già:
 - usa i colori liberi delle palette esistenti senza toccare quelli usati;
 - riusa i tile già presenti;
+- riempie il tileset dall'alto: i tile nuovi prendono prima il posto dei tile che nessun blocco usa, poi vanno in coda (se preferisci, li metti tutti in coda);
 - piazzi i blocchi nelle caselle libere del blockset.
 
 Lo script controlla che la ROM corrisponda agli export prima di scrivere.
@@ -31,7 +32,7 @@ Lo script controlla che la ROM corrisponda agli export prima di scrivere.
 ## Note per HexManiacAdvance
 
 - Lo script `.hma` va trascinato sulla **vista esadecimale**. Sulla vista mappa, HMA lo aprirebbe come una ROM.
-- I file `.pal` esportati da HMA hanno rosso e blu scambiati. Tileset Studio li legge correttamente; le `.pal` esportate da Tileset Studio sono RGB standard (per AdvanceMap e programmi di grafica).
+- I file `.pal` esportati da HMA hanno rosso e blu scambiati. Crispy Tileset Studio li legge correttamente; le `.pal` esportate da Crispy Tileset Studio sono RGB standard (per AdvanceMap e programmi di grafica).
 - Il pulsante "Import Blocks" di HMA usa un formato diverso (18 byte per blocco): per HMA usa lo script `.hma`.
 - I blocchi nuovi hanno comportamento 0: erba alta, acqua ecc. si impostano in HMA.
 
