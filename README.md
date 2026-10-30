@@ -2,7 +2,7 @@
 
 Strumento web per preparare **tileset, palette e blocchi di Pokémon FireRed** (GBA) partendo da immagini PNG a colori pieni.
 
-**Apri lo strumento:** https://crispymcangels.github.io/tileset-studio/
+**Apri lo strumento:** https://crispymcangels.github.io/Tileset-Studio/
 
 Gira tutto nel browser: le immagini e i file che carichi non vengono inviati da nessuna parte.
 
