@@ -1,0 +1,2570 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tileset Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Liquid glass su un cielo al tramonto (Pokémon Sunset): pannelli di vetro scuro con riflessi chiari,
+   pulsanti a pillola, accento pesca. La pixel art sta sempre su una base scura semiopaca. */
+:root{
+  --bg:#0c0a1d;
+  --sky:
+    radial-gradient(1100px 650px at 8% -12%, rgba(255,122,89,.75), transparent 60%),
+    radial-gradient(900px 620px at 100% 0%, rgba(201,75,255,.55), transparent 62%),
+    radial-gradient(1000px 760px at 72% 112%, rgba(43,107,255,.55), transparent 62%),
+    radial-gradient(760px 560px at -4% 104%, rgba(255,61,138,.45), transparent 62%),
+    linear-gradient(160deg, #1d1236 0%, #0e1332 55%, #070f20 100%);
+  --glass:rgba(24,20,48,.46);
+  --sheen:linear-gradient(165deg, rgba(255,255,255,.13), rgba(255,255,255,.035) 38%, rgba(255,255,255,.015));
+  --glint:radial-gradient(120% 55% at 0% 0%, rgba(255,255,255,.10), transparent 55%);
+  --rim:rgba(255,255,255,.17); --rim2:rgba(255,255,255,.28);
+  --hi:inset 0 1px 0 rgba(255,255,255,.30), inset 0 -1px 0 rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.04);
+  --drop:0 18px 48px rgba(6,4,22,.42), 0 2px 6px rgba(0,0,0,.22);
+  --blur:blur(26px) saturate(175%);
+  --art:rgba(11,9,26,.78);
+  --panel:var(--glass); --panel2:rgba(255,255,255,.07); --line:rgba(255,255,255,.12); --line2:rgba(255,255,255,.22);
+  --text:#f5f2fc; --muted:#c2bcdb; --faint:#918ab2;
+  --accent:#ffb38a; --accent2:#ff7f8e; --ok:#57d69a; --warn:#ffc548; --bad:#ff6b73;
+  --radius:20px;
+  --checker:conic-gradient(rgba(255,255,255,.06) 25%,rgba(255,255,255,.11) 0 50%,rgba(255,255,255,.06) 0 75%,rgba(255,255,255,.11) 0) 0 0/12px 12px;
+  color-scheme:dark;
+}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:#173327;color:#8fe3b8;border:1px solid #2c5a45;padding:9px 14px;border-radius:9px;font-size:13px;z-index:60;max-width:calc(100% - 32px)}
+#toast.bad{background:#401d20;color:#ffb3b5;border-color:#6b2a2e}
+.exgroup{border:1px solid var(--line);border-radius:9px;background:var(--panel2);padding:9px 10px}
+.exgroup .exhead{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.exgroup .exdrop{border:1.5px dashed var(--line2);border-radius:8px;padding:8px;text-align:center;font-size:12px;color:var(--muted);margin-bottom:6px}
+.exgroup .exdrop.over{border-color:var(--accent);background:#1e2a3d;color:var(--text)}
+.exrow{display:grid;grid-template-columns:62px 1fr auto;gap:6px;align-items:center;font-size:12.3px;padding:3px 0;border-top:1px solid var(--line)}
+.exrow:first-of-type{border-top:0}
+.exrow .k{color:var(--muted)}
+.exrow .v{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.exrow .v.ok{color:#8fe3b8} .exrow .v.miss{color:#ffd37a}
+.exwarn{font-size:12px;color:#ffd37a;margin-top:6px}
+.palrow .sws i.unused{opacity:.35;outline:1px dashed #8a93a6;outline-offset:-2px}
+.palrow .sws i.newc{outline:2px solid #fff;outline-offset:-1px;box-shadow:0 0 0 1px #000}
+.palrow.inuse .lab span{color:var(--text)!important}
+.palrow.exist .lab span{color:var(--muted)}
+.hmahelp{position:fixed;right:max(16px,env(safe-area-inset-right,0px));top:calc(64px + env(safe-area-inset-top,0px));width:min(440px,calc(100% - 32px));background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:14px 16px;z-index:55;box-shadow:0 12px 40px #000a}
+.hmahelp h3{margin:0 0 8px;font-size:14px}
+.hmahelp ol{margin:0 0 8px;padding-left:20px;display:grid;gap:6px;font-size:13px}
+.hmahelp p{margin:0 0 10px}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;align-items:center;gap:14px;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+header h1{font-size:17px;margin:0;font-weight:650}
+header .sub{color:var(--muted);font-size:12.5px}
+.spacer{flex:1}
+button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line2);border-radius:7px;padding:6px 11px;cursor:pointer}
+button:hover:not(:disabled){border-color:#58617a;background:#2a2f3b}
+button.primary{background:var(--accent);color:#0b1220;border-color:transparent;font-weight:600}
+button.primary:hover:not(:disabled){background:#8bbaff}
+button.small{padding:3px 8px;font-size:12.5px}
+button.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+button.ghost:hover:not(:disabled){color:var(--text);background:var(--panel2)}
+button:disabled{opacity:.45;cursor:default}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:7px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;color:var(--muted);padding:4px 10px}
+.seg button.on{background:var(--panel2);color:var(--text);box-shadow:inset 0 -2px 0 var(--accent)}
+.seg.tiny button{padding:2px 8px;font-size:12px}
+.layout{display:grid;grid-template-columns:300px minmax(0,1fr) 400px;gap:12px;padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));height:calc(100% - 55px)}
+.col{min-height:0;overflow:auto;display:flex;flex-direction:column;gap:12px;padding-bottom:12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px}
+.panel h2{font-size:12px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin:0 0 10px;font-weight:650;display:flex;align-items:center;gap:8px}
+.panel h2 .count{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:500;color:var(--faint)}
+.muted{color:var(--muted)} .faint{color:var(--faint)}
+.small{font-size:12.5px}
+/* drop */
+.drop{border:1.5px dashed var(--line2);border-radius:var(--radius);padding:18px 12px;text-align:center;color:var(--muted);transition:.15s}
+.drop.over{border-color:var(--accent);background:#1e2a3d;color:var(--text)}
+.drop b{color:var(--text)}
+/* image cards */
+.imgcard{display:grid;grid-template-columns:64px 1fr;gap:10px;padding:9px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);cursor:pointer;position:relative}
+.imgcard.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.imgcard .thumb{width:64px;height:64px;background:var(--checker);border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.imgcard .thumb canvas{image-rendering:pixelated;max-width:64px;max-height:64px}
+.imgcard .name{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:18px}
+.imgcard .meta{font-size:12px;color:var(--muted)}
+.imgcard .row{display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap}
+.imgcard .x{position:absolute;top:4px;right:4px;padding:0 6px;line-height:20px}
+.imgcard.allcard{background:#1e2533}
+.imgcard .thumb.allthumb{display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:2px;place-items:center}
+.imgcard .thumb canvas{width:auto!important;height:auto!important}
+.imgcard .thumb.allthumb canvas{max-width:30px;max-height:30px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;padding:1px 7px;border-radius:999px;background:#2b3040;color:var(--text);white-space:nowrap}
+.chip.warn{background:#3d3215;color:#ffd37a}
+.chip.bad{background:#401d20;color:#ff9a9d}
+.chip.ok{background:#173327;color:#8fe3b8}
+.dot{width:9px;height:9px;border-radius:3px;display:inline-block}
+.sw{width:16px;height:16px;border-radius:4px;border:1px solid #0006;display:inline-block;vertical-align:middle}
+.sw.tr{background:var(--checker)!important;background-size:8px 8px!important}
+.tinput{font:inherit;font-size:12.5px;background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:7px;padding:5px 8px}
+.tinput:focus{outline:none;border-color:var(--accent)}
+.tinput.bad{border-color:var(--bad)}
+select{font:inherit;font-size:12px;background:var(--panel);color:var(--text);border:1px solid var(--line2);border-radius:6px;padding:2px 4px}
+/* viewer */
+.vtool{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.vtool .title{font-weight:650}
+.viewer{position:relative;overflow:auto;background:var(--checker);border-radius:8px;min-height:240px;max-height:62vh;display:flex;align-items:flex-start;justify-content:flex-start;padding:12px}
+.viewer canvas{image-rendering:pixelated;display:block;margin:auto}
+.viewer.picking canvas{cursor:crosshair}
+.empty{color:var(--muted);text-align:center;padding:50px 20px;margin:auto}
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--muted)}
+#tip{position:fixed;pointer-events:none;background:#0d0f14f0;border:1px solid var(--line2);border-radius:7px;padding:6px 9px;font-size:12px;z-index:50;display:none;max-width:320px;white-space:pre-line}
+.tsbox{overflow:auto;background:var(--checker);border-radius:8px;padding:10px;max-height:340px}
+.tsbox canvas{image-rendering:pixelated;display:block}
+/* budget */
+.budget{display:grid;gap:12px}
+.bgroup .bhead{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.bgroup .bhead b{font-size:14px}
+.bar{height:8px;border-radius:99px;background:#2a2f3b;overflow:hidden;display:flex}
+.bar>i{display:block;height:100%;background:var(--ok);border-radius:99px}
+.bar>i.ex{background:#5b6375!important;border-radius:99px 0 0 99px}
+.bar.warn>i{background:var(--warn)} .bar.bad>i{background:var(--bad)}
+.brow{display:grid;grid-template-columns:70px 1fr minmax(74px,auto);align-items:center;gap:8px;font-size:12.5px;margin:4px 0}
+.brow span:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.palcells{display:flex;gap:4px}
+.palcells i{flex:1;height:8px;border-radius:3px;background:#2a2f3b}
+/* suggestions */
+.sugg{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:9px;padding:10px 11px;background:var(--panel2);margin-bottom:10px}
+.sugg.need{border-left-color:var(--warn)}
+.sugg.save{border-left-color:var(--ok)}
+.sugg h3{margin:0 0 4px;font-size:13.5px}
+.sugg p{margin:4px 0;font-size:12.8px;color:#cfd3dc}
+.sugg .acts{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+.sugg .opts{display:grid;gap:7px;margin-top:8px}
+.opt{border:1px solid var(--line2);border-radius:8px;padding:8px 9px;background:var(--panel)}
+.opt .oh{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+.opt .oh b{font-size:13px}
+.opt .oh button{margin-left:auto}
+.opt .stats{font-size:12px;color:var(--muted)}
+.pairs{display:flex;flex-wrap:wrap;gap:5px 10px;margin:6px 0}
+.pair{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;color:var(--muted)}
+.prev{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.prev figure{margin:0;font-size:11px;color:var(--muted);text-align:center}
+.prev figure{width:100%}
+.prev .pp{display:grid;grid-template-columns:1fr 1fr;gap:4px;justify-items:center}
+.prev canvas{image-rendering:pixelated;background:var(--checker);border-radius:4px;display:block;max-width:100%}
+.cost{font-size:11.5px;padding:1px 7px;border-radius:99px}
+.cost.c0{background:#173327;color:#8fe3b8}.cost.c1{background:#24331a;color:#c3e88d}.cost.c2{background:#3d3215;color:#ffd37a}.cost.c3{background:#401d20;color:#ff9a9d}
+.busy{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.spin{width:12px;height:12px;border:2px solid var(--line2);border-top-color:var(--accent);border-radius:50%;animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.dec{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 0;border-top:1px solid var(--line)}
+.dec:first-of-type{border-top:0}
+.dec span{flex:1}
+/* palettes */
+.palrow{display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center;padding:5px 4px;border-radius:7px}
+.palrow:hover{background:var(--panel2)}
+.palrow .lab{font-size:12px;font-weight:650;display:flex;align-items:center;gap:5px}
+.palrow .sws{display:grid;grid-template-columns:repeat(16,1fr);gap:2px}
+.palrow .sws i{aspect-ratio:1;border-radius:3px;border:1px solid #0005}
+.palrow .sws i.free{background:transparent;border:1px dashed #3d4454}
+.palrow .info{grid-column:2;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.over{color:var(--bad);font-weight:600}
+.notice{font-size:12.5px;padding:8px 10px;border-radius:8px;background:#401d20;color:#ffb3b5;margin-bottom:10px}
+.notice.info{background:#1d2a40;color:#b9d3ff}
+.btools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-2px 0 10px;padding:8px 10px;background:var(--panel2);border-radius:8px;font-size:12.5px}
+.btools label{color:var(--muted);display:flex;align-items:center;gap:6px}
+.viewer.painting canvas{cursor:cell}
+@media (max-width:1150px){
+  .layout{grid-template-columns:minmax(0,1fr);height:auto}
+  .col{overflow:visible;min-width:0}
+  .viewer{max-height:none}
+}
+
+/* ================================================================ liquid glass */
+body{background:var(--sky);background-color:var(--bg);background-attachment:fixed;font-family:system-ui,"Segoe UI Variable Text","Segoe UI",-apple-system,Roboto,sans-serif}
+header{background:var(--glint),var(--sheen),rgba(20,16,42,.38);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-bottom:1px solid var(--rim);box-shadow:inset 0 -1px 0 rgba(0,0,0,.25),0 10px 30px rgba(6,4,22,.25);position:relative;z-index:5}
+header h1{font-size:18px;font-weight:700;letter-spacing:.2px;background:linear-gradient(95deg,#fff2e6,#ffc49a 45%,#ff8fa3);-webkit-background-clip:text;background-clip:text;color:transparent}
+.layout{gap:14px;padding-block:14px}
+.panel{background:var(--glint),var(--sheen),var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--rim);border-radius:var(--radius);box-shadow:var(--hi),var(--drop);padding:14px}
+.panel h2{color:#d8d2ee;letter-spacing:.9px}
+.panel h2 .count{color:var(--faint)}
+
+/* pulsanti a pillola con riflesso */
+button{border-radius:999px;padding:6px 14px;background:linear-gradient(180deg,rgba(255,255,255,.17),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.20);box-shadow:inset 0 1px 0 rgba(255,255,255,.38),inset 0 -1px 0 rgba(0,0,0,.22),0 4px 12px rgba(4,2,16,.20);transition:background .15s,border-color .15s,box-shadow .15s,transform .08s}
+button:hover:not(:disabled){background:linear-gradient(180deg,rgba(255,255,255,.26),rgba(255,255,255,.09));border-color:rgba(255,255,255,.34)}
+button:active:not(:disabled){transform:translateY(1px)}
+button:focus-visible,select:focus-visible,.tinput:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.small{padding:3px 11px}
+button.primary{background:linear-gradient(180deg,#ffd0ad,#ffa07a 55%,#ff7f8e);color:#2b0d17;border-color:rgba(255,255,255,.55);font-weight:650;box-shadow:inset 0 1px 0 rgba(255,255,255,.75),inset 0 -2px 6px rgba(170,40,70,.30),0 8px 22px rgba(255,120,120,.32)}
+button.primary:hover:not(:disabled){background:linear-gradient(180deg,#ffdcc1,#ffb08f 55%,#ff909d)}
+button.ghost{background:transparent;border-color:transparent;box-shadow:none;color:var(--muted)}
+button.ghost:hover:not(:disabled){background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.14);color:var(--text)}
+
+/* controlli segmentati: canale incassato + pillola lucida per la scelta attiva */
+.seg{background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:2px;gap:2px;overflow:visible;box-shadow:inset 0 1px 3px rgba(0,0,0,.40)}
+.seg button{border:0;border-radius:999px;background:transparent;box-shadow:none;color:var(--muted);padding:4px 12px}
+.seg button:hover:not(:disabled){background:rgba(255,255,255,.08)}
+.seg button.on{background:linear-gradient(180deg,rgba(255,255,255,.30),rgba(255,255,255,.10));color:var(--text);box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 2px 8px rgba(0,0,0,.28)}
+.seg.tiny button{padding:2px 9px}
+
+/* campi */
+.tinput{background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 12px;box-shadow:inset 0 1px 3px rgba(0,0,0,.35)}
+select{background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:3px 6px;box-shadow:inset 0 1px 2px rgba(0,0,0,.3)}
+select option{background:#1e1838;color:var(--text)}
+
+/* superfici annidate: vetro più leggero, senza sfocatura */
+.imgcard,.sugg,.exgroup,.opt{background:linear-gradient(170deg,rgba(255,255,255,.10),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.13);border-radius:15px;box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
+.imgcard:hover{border-color:rgba(255,255,255,.24)}
+.imgcard.sel{border-color:rgba(255,196,154,.85);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 0 0 1px rgba(255,180,140,.55),0 0 26px rgba(255,140,120,.22)}
+.imgcard.allcard{background:linear-gradient(170deg,rgba(255,190,150,.14),rgba(255,255,255,.03))}
+.imgcard .thumb{background:var(--checker),var(--art);border-radius:11px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.sugg{border-left-width:1px;border-radius:15px}
+.sugg.need{background:linear-gradient(170deg,rgba(255,197,72,.15),rgba(255,255,255,.03));border-color:rgba(255,197,72,.30)}
+.sugg.save{background:linear-gradient(170deg,rgba(87,214,154,.15),rgba(255,255,255,.03));border-color:rgba(87,214,154,.30)}
+.sugg p{color:#e2ddf2}
+.opt{background:rgba(0,0,0,.16);border-radius:12px}
+.btools{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.drop,.exgroup .exdrop{border:1.5px dashed rgba(255,255,255,.26);border-radius:16px;background:rgba(255,255,255,.03)}
+.drop.over,.exgroup .exdrop.over{border-color:var(--accent);background:rgba(255,179,138,.12)}
+.palrow{border-radius:11px}
+.palrow:hover{background:rgba(255,255,255,.07)}
+.palrow .sws i{border-color:rgba(0,0,0,.35);border-radius:4px}
+.palrow .sws i.free{border-color:rgba(255,255,255,.22)}
+.dec{border-top-color:rgba(255,255,255,.10)}
+.exrow{border-top-color:rgba(255,255,255,.10)}
+
+/* la pixel art resta su base scura semiopaca */
+.viewer,.tsbox{background:var(--checker),var(--art);border:1px solid rgba(255,255,255,.12);border-radius:15px;box-shadow:inset 0 2px 12px rgba(0,0,0,.45)}
+.prev canvas{background:var(--checker),var(--art);border-radius:6px}
+.sw.tr{background:var(--checker),var(--art)!important;background-size:8px 8px!important}
+
+/* chip, barre, avvisi */
+.chip{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.12)}
+.chip.ok{background:rgba(87,214,154,.18);border-color:rgba(87,214,154,.30);color:#a9f0cb}
+.chip.warn{background:rgba(255,197,72,.18);border-color:rgba(255,197,72,.32);color:#ffe0a0}
+.chip.bad{background:rgba(255,107,115,.18);border-color:rgba(255,107,115,.34);color:#ffb7bb}
+.cost.c0{background:rgba(87,214,154,.18);color:#a9f0cb}.cost.c1{background:rgba(180,230,120,.16);color:#d3f2a9}.cost.c2{background:rgba(255,197,72,.18);color:#ffe0a0}.cost.c3{background:rgba(255,107,115,.18);color:#ffb7bb}
+.bar{height:9px;background:rgba(0,0,0,.30);box-shadow:inset 0 1px 2px rgba(0,0,0,.45)}
+.bar>i{background:linear-gradient(90deg,#3fcf8e,#7cf0b8);box-shadow:0 0 10px rgba(90,230,170,.45)}
+.bar.warn>i{background:linear-gradient(90deg,#ffb23e,#ffd67a);box-shadow:0 0 10px rgba(255,200,90,.45)}
+.bar.bad>i{background:linear-gradient(90deg,#ff5d6c,#ff9aa2);box-shadow:0 0 10px rgba(255,100,110,.45)}
+.bar>i.ex{background:rgba(255,255,255,.30)!important;box-shadow:none}
+.palcells i{background:rgba(0,0,0,.30);border-radius:4px}
+.notice{background:rgba(255,107,115,.16);border:1px solid rgba(255,107,115,.32);color:#ffc6c9;border-radius:13px}
+.notice.info{background:rgba(120,160,255,.14);border-color:rgba(140,175,255,.32);color:#d2deff}
+.spin{border-color:rgba(255,255,255,.2);border-top-color:var(--accent)}
+
+/* elementi fluttuanti: vetro più denso */
+#tip,#toast,.hmahelp{-webkit-backdrop-filter:blur(20px) saturate(170%);backdrop-filter:blur(20px) saturate(170%);box-shadow:var(--hi),var(--drop)}
+#tip{background:rgba(22,18,44,.74);border:1px solid rgba(255,255,255,.20);border-radius:12px}
+#toast{background:linear-gradient(170deg,rgba(87,214,154,.30),rgba(24,20,48,.70));border:1px solid rgba(87,214,154,.40);color:#d6f8e6;border-radius:999px;padding:9px 18px}
+#toast.bad{background:linear-gradient(170deg,rgba(255,107,115,.30),rgba(24,20,48,.70));border-color:rgba(255,107,115,.45);color:#ffd5d8}
+.hmahelp{background:var(--glint),var(--sheen),rgba(24,20,48,.72);border:1px solid var(--rim2);border-radius:20px}
+
+/* barre di scorrimento sottili */
+*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
+
+/* chi chiede meno trasparenze (o browser senza sfocatura) vede vetro opaco */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .panel,header,#tip,#toast,.hmahelp{background-color:rgba(26,22,50,.94)}
+}
+@media (prefers-reduced-transparency:reduce){
+  .panel,header,#tip,#toast,.hmahelp{-webkit-backdrop-filter:none;backdrop-filter:none;background:#1c1838}
+}
+@media (prefers-reduced-motion:reduce){ button{transition:none} .spin{animation-duration:2s} }
+@media (max-width:520px){ .seg{flex-wrap:wrap;max-width:100%;border-radius:16px} }
+</style>
+</head>
+<body>
+<header>
+  <h1>Tileset Studio</h1>
+  <span class="seg" id="modeSeg" title="Nuovo tileset: parti da zero. Aggiungi: la nuova grafica entra in un tileset che esiste già nella ROM."><button data-m="new" class="on">Nuovo tileset</button><button data-m="add">Aggiungi a esistente</button></span>
+  <span class="spacer"></span>
+  <button id="btnOpen" class="ghost">Apri progetto</button>
+  <button id="btnSave" class="ghost">Salva progetto</button>
+  <label class="small muted" for="hmaTarget" title="Banco.mappa di destinazione in HMA. Vuoto = la mappa aperta nell'editor mappe di HMA.">Mappa HMA</label>
+  <input id="hmaTarget" class="tinput" placeholder="aperta in HMA" size="11" autocomplete="off">
+  <button id="btnHma">Script per HMA</button>
+  <button id="btnExport" class="primary">Esporta tutto (.zip)</button>
+  <input type="file" id="fileProj" accept=".json,application/json" hidden>
+</header>
+
+<div class="layout">
+  <div class="col">
+    <div class="panel" id="exPanel" hidden>
+      <h2>Tileset esistente <span class="count" id="exCount"></span></h2>
+      <p class="small muted" style="margin:0 0 10px">Esporta da HMA (editor mappe, voci <i>Export</i> di tileset, palette e blocchi) e trascina qui i file. Del <b>secondario</b> servono tileset, palette e blocchi; del <b>primario</b> tileset e palette, perché i blocchi usano anche quelli.</p>
+      <div id="exGroups" style="display:grid;gap:10px"></div>
+    </div>
+    <div class="panel">
+      <h2>Immagini <span class="count" id="imgCount"></span></h2>
+      <div class="drop" id="drop">Trascina qui i PNG<br><span class="small">oppure</span> <button class="small" id="btnPick">scegli file</button>
+        <div class="small faint" style="margin-top:6px">Nuove immagini su: <span class="seg tiny" id="defTarget"><button data-t="P">Primario</button><button data-t="S" class="on">Secondario</button></span></div>
+      </div>
+      <input type="file" id="fileIn" accept="image/*" multiple hidden>
+      <div id="imgList" style="display:grid;gap:8px;margin-top:10px"></div>
+    </div>
+    <div class="panel" id="decPanel" hidden>
+      <h2>Decisioni applicate</h2>
+      <div id="decList"></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="panel">
+      <div class="vtool">
+        <span class="title" id="vTitle">Anteprima</span>
+        <span class="seg" id="viewSeg">
+          <button data-v="orig">Originale</button>
+          <button data-v="result" class="on">Risultato GBA</button>
+          <button data-v="map">Mappa palette</button>
+          <button data-v="diff">Differenze</button>
+          <button data-v="blocks">Blocchi</button>
+        </span>
+        <span class="spacer"></span>
+        <label class="small muted"><input type="checkbox" id="chkGrid" checked> griglia</label>
+        <span class="seg tiny"><button id="zOut">−</button><button id="zLab" disabled>auto</button><button id="zIn">+</button></span>
+      </div>
+      <div class="btools" id="blockTools" hidden>
+        <span class="muted">Pennello:</span>
+        <span class="seg tiny" id="brushSeg"><button data-b="bottom">▼ Sotto il giocatore</button><button data-b="top" class="on">▲ Sopra il giocatore</button><button data-b="star">★ Usa come sfondo</button></span>
+        <label id="bgLabel">Sfondo per le parti trasparenti <select id="bgSel"></select></label>
+        <span id="bgNote" class="faint" hidden>Lo sfondo si sceglie selezionando la singola immagine.</span>
+        <label>Ordine nel blockset <select id="layoutSel"><option value="compact">compatto (niente doppioni)</option><option value="shape">mantieni la forma (8 per riga, come HMA)</option></select></label>
+      </div>
+      <div class="viewer" id="viewer"><div class="empty" id="vEmpty">Carica una o più immagini per iniziare.<br><span class="small">Casette, alberi, pezzi di tileset: a colori pieni, non serve indicizzarle.</span></div><canvas id="view" hidden></canvas></div>
+      <div class="legend" id="vLegend"></div>
+    </div>
+    <div class="panel">
+      <div class="vtool">
+        <span class="title">Generato</span>
+        <span class="seg" id="tsKind"><button data-k="tiles" class="on">Tile</button><button data-k="blocks">Blocchi</button></span>
+        <span class="seg" id="tsSeg"><button data-g="P">Primario</button><button data-g="S" class="on">Secondario</button></span>
+        <span class="spacer"></span>
+        <span class="small muted" id="tsInfo"></span>
+      </div>
+      <div class="btools" id="placeBar" hidden>
+        <label>Oggetto <select id="placeObj"></select></label>
+        <label>Disposizione <select id="placeMode"><option value="rect">rettangolo (mantiene la forma)</option><option value="fill">riempi i primi liberi</option></select></label>
+        <button class="small" id="placeAuto">Posto automatico</button>
+        <button class="small" id="placeBg" title="Clicca poi un blocco esistente: diventa lo sfondo delle parti trasparenti dell'oggetto">Sfondo da un blocco esistente</button>
+        <span class="faint" id="placeHint"></span>
+      </div>
+      <div class="tsbox"><canvas id="tsCanvas"></canvas></div>
+      <div class="small faint" style="margin-top:6px" id="tsNote"></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="panel"><h2>Budget</h2><div class="budget" id="budget"></div></div>
+    <div class="panel"><h2>Consigli <span class="count" id="suggCount"></span></h2><div id="suggs"></div></div>
+    <div class="panel"><h2>Palette</h2><div id="pals"></div></div>
+  </div>
+</div>
+<div id="tip"></div>
+<div id="toast" role="status" hidden></div>
+<div id="hmaHelp" class="hmahelp" role="dialog" aria-labelledby="hmaHelpTitle" hidden>
+  <h3 id="hmaHelpTitle">Come importare <span id="hmaHelpName"></span> in HMA</h3>
+  <ol>
+    <li>Apri la ROM in HexManiacAdvance.</li>
+    <li>Se il campo "Mappa HMA" era vuoto, apri prima nell'editor mappe la mappa di destinazione.</li>
+    <li><b>Torna alla vista esadecimale</b> (la griglia di byte): nell'editor mappe usa la freccia <b>Indietro</b>. Se trascini sulla mappa, HMA apre il file come se fosse una ROM e non succede niente.</li>
+    <li>Trascina il file .hma sulla finestra. Mentre lo trascini deve comparire la descrizione dello script ("Tileset Studio - importa…"): se non compare, sei nella vista sbagliata.</li>
+    <li>Scegli nel dialogo (solo questa mappa / tutte / annulla), poi controlla la mappa. Ctrl+S salva, Ctrl+Z annulla tutto.</li>
+  </ol>
+  <p class="small muted">Se avevi già trascinato il file sulla mappa, chiudi senza salvare la scheda che HMA ha aperto con il nome del file .hma.</p>
+  <button class="small" id="hmaHelpClose">Ho capito</button>
+</div>
+<pre id="selftest" hidden></pre>
+
+<script>
+'use strict';
+// ============================================================ costanti
+const CAP = 15;            // colori visibili per palette
+const TRANSP = -1;         // pixel trasparente
+const GROUPS = {
+  P: {name:'Primario',   maxTiles:640, maxPals:7, firstSlot:0, tileBase:0},
+  S: {name:'Secondario', maxTiles:384, maxPals:6, firstSlot:7, tileBase:0x280},
+};
+const SLOT_COLORS = ['#e6194b','#3cb44b','#ffe119','#4363d8','#f58231','#a24bd6','#42d4f4','#f032e6','#bfef45','#fabed4','#469990','#dcbeff','#c08a3e'];
+const EXTRA_COLOR = '#ff3030';
+
+const state = {
+  images: [], decisions: [], ignored: new Set(),
+  selected: null, view: 'result', zoom: 0, grid: true, tsTab: 'S', defTarget: 'S',
+  picking: null, result: null, suggestions: [], suggToken: 0, suggBusy: false, hlSlot: null,
+  brush: 'top', bgCands: [], blockLayout: 'compact', tsKind: 'tiles', placeMode: 'rect', placeObj: null, pickExBg: false,
+};
+const MAX_BLOCKS = {P:640, S:384};
+const LAYER_NORMAL = 0, LAYER_COVERED = 0x20000000;   // attributo: tipo di layer (bit 29)
+let nextId = 1;
+const $ = s => document.querySelector(s);
+const el = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false && v!=null) e.setAttribute(k,v===true?'':v);} for(const k of kids.flat()) if(k!=null) e.append(k.nodeType?k:document.createTextNode(k)); return e; };
+const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ============================================================ colori
+const to5 = v => Math.round(v*31/255);
+const rgbToGba = (r,g,b) => to5(r) | (to5(g)<<5) | (to5(b)<<10);
+const gbaToRgb = c => { const r=c&31, g=(c>>5)&31, b=(c>>10)&31; return [(r<<3)|(r>>2), (g<<3)|(g>>2), (b<<3)|(b>>2)]; };
+const gbaHex = c => '#'+gbaToRgb(c).map(v=>v.toString(16).padStart(2,'0')).join('');
+const LAB = new Float32Array(32768*3), LABOK = new Uint8Array(32768);
+function labOf(c){
+  if(!LABOK[c]){
+    const lin = v => { v/=255; return v<=0.04045 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); };
+    const [R,G,B] = gbaToRgb(c).map(lin);
+    const l=Math.cbrt(0.4122214708*R+0.5363325363*G+0.0514459929*B);
+    const m=Math.cbrt(0.2119034982*R+0.6806995451*G+0.1073969566*B);
+    const s=Math.cbrt(0.0883024619*R+0.2817188376*G+0.6299787005*B);
+    LAB[c*3]  =(0.2104542553*l+0.7936177850*m-0.0040720468*s)*100;
+    LAB[c*3+1]=(1.9779984951*l-2.4285922050*m+0.4505937099*s)*100;
+    LAB[c*3+2]=(0.0259040371*l+0.7827717662*m-0.8086757660*s)*100;
+    LABOK[c]=1;
+  }
+  return c*3;
+}
+function dE(a,b){ const i=labOf(a), j=labOf(b); const x=LAB[i]-LAB[j], y=LAB[i+1]-LAB[j+1], z=LAB[i+2]-LAB[j+2]; return Math.sqrt(x*x+y*y+z*z); }
+const lum = c => LAB[labOf(c)];
+function costLevel(d){ return d<2?0 : d<5?1 : d<10?2 : 3; }
+const COST_TXT = ['invisibile','lieve','visibile','forte'];
+function costBadge(d){ const l=costLevel(d); return `<span class="cost c${l}">${COST_TXT[l]} · ΔE max ${d.toFixed(1)}</span>`; }
+
+// ============================================================ utility tile 8x8
+const FLIPIDX = [0,1,2,3].map(f=>{ const a=new Int32Array(64); for(let y=0;y<8;y++) for(let x=0;x<8;x++){ const sx=(f&1)?7-x:x, sy=(f&2)?7-y:y; a[y*8+x]=sy*8+sx; } return a; });
+function flipArr(src,f,Ctor){ if(!f) return src; const out=new Ctor(64), m=FLIPIDX[f]; for(let i=0;i<64;i++) out[i]=src[m[i]]; return out; }
+// forma canonica: la più "piccola" tra le 4 versioni specchiate. src = flip(canon, f)
+function canon(src,Ctor){ let best=src, bestF=0, bestKey=src.join(','); for(let f=1;f<4;f++){ const a=flipArr(src,f,Ctor), k=a.join(','); if(k<bestKey){ best=a; bestF=f; bestKey=k; } } return {key:bestKey, arr:best, f:bestF}; }
+function countColors(t){ const m=new Map(); for(const c of t) if(c!==TRANSP) m.set(c,(m.get(c)||0)+1); return m; }
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function pc(x){ x-=(x>>>1)&0x55555555; x=(x&0x33333333)+((x>>>2)&0x33333333); return (((x+(x>>>4))&0x0F0F0F0F)*0x01010101)>>>24; }
+
+// riduce un tile a max colori unendo le coppie più simili
+function reduceTile(t, max=CAP){
+  const counts=countColors(t), map=new Map();
+  while(counts.size>max){
+    const cs=[...counts.keys()]; let bi=0,bj=1,bd=Infinity;
+    for(let i=0;i<cs.length;i++) for(let j=i+1;j<cs.length;j++){ const d=dE(cs[i],cs[j]); if(d<bd){bd=d;bi=i;bj=j;} }
+    let keep=cs[bi], drop=cs[bj]; if(counts.get(drop)>counts.get(keep)) [keep,drop]=[drop,keep];
+    counts.set(keep,counts.get(keep)+counts.get(drop)); counts.delete(drop);
+    for(const [k,v] of map) if(v===drop) map.set(k,keep);
+    map.set(drop,keep);
+  }
+  let maxD=0; for(const [k,v] of map) maxD=Math.max(maxD,dE(k,v));
+  return {px:Int32Array.from(t, c=> map.has(c)?map.get(c):c), maxD};
+}
+// divide un tile troppo colorato in due layer (sotto / sopra) raggruppando i colori simili
+function splitTile(t){
+  const counts=countColors(t), cs=[...counts.keys()], n=cs.length;
+  const L=cs.map(c=>{const i=labOf(c); return [LAB[i],LAB[i+1],LAB[i+2]];});
+  const d2=(p,q)=>(p[0]-q[0])**2+(p[1]-q[1])**2+(p[2]-q[2])**2;
+  let a=0,b=1,bd=-1; for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){ const d=d2(L[i],L[j]); if(d>bd){bd=d;a=i;b=j;} }
+  let cen=[L[a].slice(),L[b].slice()]; const grp=new Int8Array(n);
+  for(let it=0;it<12;it++){
+    for(let i=0;i<n;i++) grp[i]= d2(L[i],cen[0])<=d2(L[i],cen[1])?0:1;
+    for(const g of [0,1]){ const s=[0,0,0]; let w=0; for(let i=0;i<n;i++) if(grp[i]===g){ const k=counts.get(cs[i]); s[0]+=L[i][0]*k; s[1]+=L[i][1]*k; s[2]+=L[i][2]*k; w+=k; } if(w) cen[g]=s.map(v=>v/w); }
+  }
+  const size=g=>grp.reduce((s,v)=>s+(v===g),0);
+  for(const [from,to] of [[0,1],[1,0]]){
+    while(size(from)>CAP && size(to)<CAP){
+      let bi=-1,bv=Infinity; for(let i=0;i<n;i++) if(grp[i]===from){ const v=d2(L[i],cen[to])-d2(L[i],cen[from]); if(v<bv){bv=v;bi=i;} }
+      grp[bi]=to;
+    }
+  }
+  let pix=[0,0]; for(let i=0;i<n;i++) pix[grp[i]]+=counts.get(cs[i]);
+  const bottomG = pix[0]>=pix[1]?0:1;
+  const gi=new Map(cs.map((c,i)=>[c,grp[i]]));
+  const bottom=new Int32Array(64).fill(TRANSP), top=new Int32Array(64).fill(TRANSP);
+  for(let i=0;i<64;i++){ const c=t[i]; if(c===TRANSP) continue; (gi.get(c)===bottomG?bottom:top)[i]=c; }
+  return [bottom, top];
+}
+
+// ============================================================ impacchettamento palette
+// sets: [{colors:[...], weight}] -> ogni set deve stare intero in una palette da `cap` colori
+function pack(sets, cap, restarts){
+  const n=sets.length; if(!n) return {bins:[], assign:new Int32Array(0)};
+  const cidx=new Map(); for(const s of sets) for(const c of s.colors) if(!cidx.has(c)) cidx.set(c,cidx.size);
+  const W=(cidx.size+31)>>>5;
+  const bits=sets.map(s=>{ const b=new Uint32Array(W); for(const c of s.colors){ const i=cidx.get(c); b[i>>>5]|=(1<<(i&31)); } return b; });
+  const sizes=sets.map(s=>s.colors.length);
+  const uc=(a,b)=>{ let k=0; for(let i=0;i<W;i++) k+=pc(a[i]|b[i]); return k; };
+  const place=(si,targets)=>{ let best=null,ba=Infinity; for(const t of targets){ const u=uc(t.bits,bits[si]); if(u>cap) continue; const add=u-t.count; if(add<ba||(add===ba&&t.count>best.count)){best=t;ba=add;} } return [best,ba]; };
+  const put=(t,si,add)=>{ for(let i=0;i<W;i++) t.bits[i]|=bits[si][i]; t.count+=add; t.members.push(si); };
+  function improve(bins){
+    let changed=true;
+    while(changed && bins.length>1){
+      changed=false;
+      const order=bins.map((_,i)=>i).sort((a,b)=>bins[a].count-bins[b].count||bins[a].members.length-bins[b].members.length);
+      for(const k of order){
+        const targets=bins.filter((_,i)=>i!==k).map(b=>({bits:Uint32Array.from(b.bits),count:b.count,members:b.members.slice()}));
+        const ms=bins[k].members.slice().sort((a,b)=>sizes[b]-sizes[a]);
+        let ok=true; for(const si of ms){ const [t,add]=place(si,targets); if(!t){ok=false;break;} put(t,si,add); }
+        if(ok){ bins.length=0; bins.push(...targets); changed=true; break; }
+      }
+    }
+  }
+  function greedy(order){
+    const bins=[];
+    for(const si of order){ let [t,add]=place(si,bins); if(!t){ t={bits:new Uint32Array(W),count:0,members:[]}; bins.push(t); add=sizes[si]; } put(t,si,add); }
+    improve(bins); return bins;
+  }
+  const rnd=mulberry32(0x5EED);
+  const base=[...Array(n).keys()].sort((a,b)=>sizes[b]-sizes[a]||sets[b].weight-sets[a].weight||a-b);
+  let best=null;
+  for(let r=0;r<restarts;r++){
+    let order=base;
+    if(r>0){ const key=new Float64Array(n); for(let i=0;i<n;i++) key[i]=sizes[i]+rnd()*4; order=base.slice().sort((a,b)=>key[b]-key[a]); }
+    const bins=greedy(order), total=bins.reduce((s,b)=>s+b.count,0);
+    if(!best||bins.length<best.bins.length||(bins.length===best.bins.length&&total<best.total)) best={bins,total};
+  }
+  // ordina le palette secondo l'ordine delle immagini
+  best.bins.forEach(b=>b.first=Math.min(...b.members));
+  best.bins.sort((a,b)=>a.first-b.first);
+  const colorsList=[...cidx.keys()], assign=new Int32Array(n);
+  const bins=best.bins.map((b,bi)=>{ for(const m of b.members) assign[m]=bi; const cols=[]; for(let i=0;i<colorsList.length;i++) if(b.bits[i>>>5]&(1<<(i&31))) cols.push(colorsList[i]); return cols; });
+  return {bins, assign};
+}
+
+// ============================================================ pipeline
+function getQuant(img){
+  const tk=img.trans.mode+':'+(img.trans.color||[]).join(',');
+  if(img._q && img._qk===tk) return img._q;
+  const W=Math.ceil(img.w/16)*16, H=Math.ceil(img.h/16)*16;
+  const px=new Int32Array(W*H).fill(TRANSP), d=img.rgba;
+  const keyG = img.trans.mode==='color' ? rgbToGba(...img.trans.color) : -2;
+  for(let y=0;y<img.h;y++) for(let x=0;x<img.w;x++){
+    const i=(y*img.w+x)*4; if(d[i+3]<128) continue;
+    const c=rgbToGba(d[i],d[i+1],d[i+2]); if(c===keyG) continue;
+    px[y*W+x]=c;
+  }
+  img._q={W,H,px}; img._qk=tk; return img._q;
+}
+function collectSubs(decisions){
+  const m=new Map();
+  for(const d of decisions) if(d.kind==='sub') for(const s of d.subs){
+    let mm=m.get(s.imageId); if(!mm){ mm=new Map(); m.set(s.imageId,mm); }
+    for(const [k,v] of mm) if(v===s.from) mm.set(k,s.to);
+    if(!mm.has(s.from)) mm.set(s.from,s.to);
+  }
+  for(const mm of m.values()) for(const [k,v] of mm) if(k===v) mm.delete(k);
+  return m;
+}
+// modalità "aggiungi" attiva: secondario esistente caricato per intero (tile, blocchi, palette 7-12)
+function addActive(){
+  if(state.mode!=='add' || !state.exInfo) return false;
+  const e=state.existing.S; return !!(e.tiles && e.blocksFile && [7,8,9,10,11,12].every(s=>e.pals[s]));
+}
+// in modalità aggiungi le palette del secondario sono 13 contenitori fissi (indice = slot: 0-6 del primario in sola lettura, 7-12 esistenti)
+function slotOf(g,b){ if(g==='S' && addActive()) return b<13?b:-1; return g==='P' ? (b<7?b:-1) : (b<6?7+b:-1); }
+function slotLabel(g,b){ const s=slotOf(g,b); if(s>=0) return String(s); return g==='S'&&addActive() ? 'fuori '+(b-12) : (g+'+'+(b-GROUPS[g].maxPals+1)); }
+function existingBins(){
+  const used=state.exInfo.groups.S.usedIdx, out=[];
+  for(let s=0;s<13;s++){
+    const pal=exPal(s);
+    if(!pal){ out.push({slot:s, usable:false, colors:[], cap:0, pal:null}); continue; }
+    if(s<7){ const set=new Set(pal.slice(1)); out.push({slot:s, usable:true, readOnly:true, colors:[...set], cap:set.size, pal}); continue; }
+    const u=used.get(s)||new Set(), locked=new Set([...u].map(i=>pal[i]));
+    out.push({slot:s, usable:true, readOnly:false, colors:[...locked], cap:locked.size+(15-u.size), pal, usedIdx:u});
+  }
+  return out;
+}
+// come pack(), ma dentro palette che esistono già: ogni contenitore ha colori bloccati e un tetto; niente palette nuove
+function packFixed(sets, fixed, restarts){
+  const n=sets.length, cidx=new Map(), reg=c=>{ if(!cidx.has(c)) cidx.set(c,cidx.size); };
+  sets.forEach(s=>s.colors.forEach(reg)); fixed.forEach(f=>f.colors.forEach(reg));
+  const W=Math.max(1,(cidx.size+31)>>>5), mk=cols=>{ const b=new Uint32Array(W); for(const c of cols){ const i=cidx.get(c); b[i>>>5]|=(1<<(i&31)); } return b; };
+  const bits=sets.map(s=>mk(s.colors)), fb=fixed.map(f=>mk(f.colors)), sizes=sets.map(s=>s.colors.length);
+  const uc=(a,b)=>{ let k=0; for(let i=0;i<W;i++) k+=pc(a[i]|b[i]); return k; };
+  const rnd=mulberry32(0x5EED), base=[...Array(n).keys()].sort((a,b)=>sizes[b]-sizes[a]||sets[b].weight-sets[a].weight||a-b);
+  let best=null;
+  for(let r=0;r<Math.max(1,restarts);r++){
+    let order=base; if(r>0){ const key=new Float64Array(n); for(let i=0;i<n;i++) key[i]=sizes[i]+rnd()*4; order=base.slice().sort((a,b)=>key[b]-key[a]); }
+    const bins=fixed.map((f,i)=>({bits:Uint32Array.from(fb[i]), count:f.colors.length, cap:f.cap, usable:f.usable}));
+    const assign=new Int32Array(n).fill(-1); let lost=0, added=0;
+    for(const si of order){
+      let bb=-1, ba=Infinity;
+      for(let b=0;b<bins.length;b++){ const bn=bins[b]; if(!bn.usable) continue; const u=uc(bn.bits,bits[si]); if(u>bn.cap) continue; const add=u-bn.count; if(add<ba||(add===ba&&bn.count>bins[bb].count)){ ba=add; bb=b; } }
+      if(bb<0){ lost+=sizes[si]*sets[si].weight; continue; }
+      const bn=bins[bb]; for(let i=0;i<W;i++) bn.bits[i]|=bits[si][i]; bn.count+=ba; added+=ba; assign[si]=bb;
+    }
+    if(!best||lost<best.lost||(lost===best.lost&&added<best.added)) best={assign,lost,added};
+  }
+  return {assign:best.assign};
+}
+// gruppo "S" in modalità aggiungi: contenitori 0-12 fissi, colori nuovi nei posti liberi, il resto in palette "fuori"
+function packIntoExisting(sets, transColor){
+  const fixed=existingBins(), pk=packFixed(sets, fixed, restartsFor(sets.length));
+  const usedBy=fixed.map(()=>new Set()), rest=[];
+  sets.forEach((s,i)=>{ const b=pk.assign[i]; if(b>=0){ s.colors.forEach(c=>usedBy[b].add(c)); s.us.forEach(u=>u.bin={g:'S',b}); } else rest.push(s); });
+  const pals=[], palMap=[], bins=[], added=[];
+  fixed.forEach((f,b)=>{
+    if(!f.usable){ pals.push(new Array(16).fill(0)); palMap.push(new Map()); bins.push([]); added.push([]); return; }
+    const pal=f.pal.slice(), map=new Map();
+    for(let i=15;i>=1;i--) if(f.readOnly || f.usedIdx.has(i)) map.set(pal[i],i);
+    const free=[]; if(!f.readOnly) for(let i=1;i<16;i++) if(!f.usedIdx.has(i)) free.push(i);
+    const need=[...usedBy[b]].filter(c=>!map.has(c)).sort((x,y)=>lum(x)-lum(y)||x-y), nw=[];
+    for(const c of need){ const k=free.findIndex(i=>pal[i]===c); if(k>=0){ map.set(c,free[k]); free.splice(k,1); } }   // colore già presente in un posto libero
+    for(const c of need){ if(map.has(c)) continue; const i=free.shift(); if(i===undefined) break; pal[i]=c; map.set(c,i); nw.push({idx:i,color:c}); }
+    pals.push(pal); palMap.push(map); bins.push([...usedBy[b]]); added.push(nw);
+  });
+  const pk2=pack(rest,CAP,restartsFor(rest.length));
+  pk2.bins.forEach(cols=>{ const c=cols.slice().sort((a,b)=>lum(a)-lum(b)||a-b), p=new Array(16).fill(0); p[0]=transColor; c.forEach((x,i)=>p[i+1]=x); bins.push(c); pals.push(p); palMap.push(new Map(c.map((x,i)=>[x,i+1]))); added.push([]); });
+  rest.forEach((s,i)=>s.us.forEach(u=>u.bin={g:'S',b:13+pk2.assign[i]}));
+  return {bins, sets, assign:pk.assign, binSets:bins.map(b=>new Set(b)), palMap, pals, finals:[], exTiles:0, added, extra:pk2.bins.length, fixed, unplacedSets:rest};
+}
+function slotColor(g,b){ const s=slotOf(g,b); return s<0?EXTRA_COLOR:SLOT_COLORS[s]; }
+function restartsFor(n){ return n>1500?6 : n>600?12 : 20; }
+
+function run(decisions){
+  const subsByImg=collectSubs(decisions);
+  const ovf=new Map(); for(const d of decisions) if(d.kind==='overflow') ovf.set(d.imageId,d.mode);
+  const utiles=[], ukey=new Map(), imgs=[];
+  const order=[...state.images.filter(i=>i.target==='P'), ...state.images.filter(i=>i.target==='S')];
+  for(const img of order){
+    const q=getQuant(img); let px=q.px;
+    const sm=subsByImg.get(img.id);
+    if(sm&&sm.size){ px=Int32Array.from(px); for(let i=0;i<px.length;i++){ const t=sm.get(px[i]); if(t!==undefined) px[i]=t; } }
+    const tw=q.W/8, th=q.H/8, cells=new Array(tw*th), seq=[], overflow=[], allCols=new Set();
+    for(let by=0;by<th/2;by++) for(let bx=0;bx<tw/2;bx++) for(let sub=0;sub<4;sub++){
+      const tx=bx*2+(sub&1), ty=by*2+(sub>>1), t=new Int32Array(64);
+      for(let y=0;y<8;y++) for(let x=0;x<8;x++) t[y*8+x]=px[(ty*8+y)*q.W+tx*8+x];
+      const counts=countColors(t); for(const c of counts.keys()) allCols.add(c);
+      const cell={tx,ty,parts:[],ncol:counts.size,ov:null,err:0,orig:t};
+      cells[ty*tw+tx]=cell; seq.push(cell);
+      if(!counts.size){ cell.empty=true; continue; }
+      let parts=[t];
+      if(counts.size>CAP){
+        const mode=ovf.get(img.id)||'auto'; cell.ov=mode; overflow.push(cell);
+        if(mode==='split'){ parts=splitTile(t).map(p=>{ if(countColors(p).size>CAP){ const r=reduceTile(p); cell.err=Math.max(cell.err,r.maxD); return r.px; } return p; }); }
+        else { const r=reduceTile(t); parts=[r.px]; cell.err=r.maxD; }
+      }
+      parts.forEach((p,layer)=>{
+        const c=canon(p,Int32Array); let u=ukey.get(c.key);
+        if(!u){ u={id:utiles.length, px:c.arr, colors:[...countColors(c.arr).keys()].sort((a,b)=>a-b), group:img.target, occ:0, imgs:new Map()}; utiles.push(u); ukey.set(c.key,u); }
+        if(img.target==='P') u.group='P';
+        u.occ++; u.imgs.set(img.id,(u.imgs.get(img.id)||0)+1);
+        cell.parts.push({u:u.id, f:c.f, layer});
+      });
+    }
+    imgs.push({img, id:img.id, W:q.W, H:q.H, tw, th, px, base:q.px, cells, seq, overflow, ncol:allCols.size});
+  }
+  // palette: prima il primario, poi il secondario (che può riusare le palette del primario)
+  const add=addActive(), groups={};
+  const firstKey=order.find(i=>i.trans.mode==='color');
+  const transColor=firstKey?rgbToGba(...firstKey.trans.color):0x7C1F;
+  const mkSets=list=>{ const sm=new Map(), sets=[]; for(const u of list){ const k=u.colors.join(','); let s=sm.get(k); if(!s){ s={colors:u.colors, weight:0, us:[]}; sm.set(k,s); sets.push(s); } s.weight+=u.occ; s.us.push(u); } return sets; };
+  const plainPals=bins=>bins.map(b=>{ const p=new Array(16).fill(0); p[0]=transColor; b.forEach((c,i)=>p[i+1]=c); return p; });
+  for(const G of ['P','S']){
+    const us=utiles.filter(u=>u.group===G), pending=[];
+    if(G==='S' && add){ groups.S=packIntoExisting(mkSets(us), transColor); groups.S.used=us.length>0; continue; }
+    for(const u of us){
+      if(G==='S' && groups.P){ const b=groups.P.binSets.findIndex(bs=>u.colors.every(c=>bs.has(c))); if(b>=0){ u.bin={g:'P',b}; continue; } }
+      pending.push(u);
+    }
+    const sets=mkSets(pending);
+    const pk=pack(sets,CAP,restartsFor(sets.length));
+    const bins=pk.bins.map(cols=>cols.slice().sort((a,b)=>lum(a)-lum(b)||a-b));
+    sets.forEach((s,i)=>s.us.forEach(u=>u.bin={g:G,b:pk.assign[i]}));
+    groups[G]={bins, sets, assign:pk.assign, binSets:bins.map(b=>new Set(b)), palMap:bins.map(b=>new Map(b.map((c,i)=>[c,i+1]))), pals:plainPals(bins), ntiles:0, finals:[], used:us.length>0, exTiles:0};
+  }
+  // tile finali (4bpp) con deduplica anche tra palette diverse
+  const fkey={P:new Map(), S:new Map()};
+  const recycle = add && decisions.some(d=>d.kind==='recycle') ? [...(state.exInfo.groups.S.unusedTiles||[])] : [];
+  const pushFinal=(G,arr,key,bin)=>{
+    let n=groups[G].finals.length;
+    if(G==='S' && recycle.length){ n=recycle.shift(); groups.S.finals[n]={data:arr, bin, recycled:true}; }
+    else groups[G].finals.push({data:arr, bin});
+    const ref={g:G,n}; fkey[G].set(key,ref); return ref;
+  };
+  if(add){
+    // i tile esistenti entrano nella lista (stessi numeri che hanno nella ROM) e si possono riusare
+    for(const [G,tiles] of [['P',state.exInfo.tP],['S',state.exInfo.tS]]){
+      if(!tiles) continue;
+      tiles.forEach((t,k)=>{ groups[G].finals.push({data:t, bin:null, existing:true}); const c=canon(t,Uint8Array); if(!fkey[G].has(c.key)) fkey[G].set(c.key,{g:G,n:k,f:c.f}); });
+      groups[G].exTiles=tiles.length;
+    }
+  } else if(groups.P.used){ const z=new Uint8Array(64); pushFinal('P',z,z.join(','),{g:'P',b:0}); }
+  for(const im of imgs) for(const cell of im.seq) for(const part of cell.parts){
+    const u=utiles[part.u];
+    if(!u.final){
+      const pm=groups[u.bin.g].palMap[u.bin.b], data=new Uint8Array(64);
+      for(let i=0;i<64;i++) data[i]= u.px[i]===TRANSP?0:pm.get(u.px[i]);
+      const c=canon(data,Uint8Array);
+      let ref=(u.group==='S'&&fkey.P.get(c.key)) || fkey[u.group].get(c.key);
+      if(!ref) ref=pushFinal(u.group,c.arr,c.key,u.bin);
+      u.final={ref:{g:ref.g,n:ref.n}, f:c.f^(ref.f||0)};   // ref.f: orientamento di un tile esistente rispetto alla forma canonica
+    }
+    part.tile=u.final.ref; part.flip=part.f^u.final.f; part.bin=u.bin;
+  }
+  for(const im of imgs){
+    const ps=new Map();
+    for(const cell of im.seq) for(const p of cell.parts) ps.set(p.bin.g+p.bin.b,p.bin);
+    im.palsUsed=[...ps.values()].sort((a,b)=>(a.g===b.g?0:a.g==='P'?-1:1)||a.b-b.b);
+  }
+  const byId=new Map(imgs.map(im=>[im.id,im]));
+  const blocks=buildBlocks(imgs, byId);
+  return {imgs, utiles, groups, transColor, byId, blocks, add};
+}
+
+// ============================================================ blocchi 16x16 (metatile)
+// un blocco = 8 voci da 16 bit (layer sotto: alto-sx, alto-dx, basso-sx, basso-dx; poi layer sopra) + attributo 32 bit
+const EMPTY_ENTRY={tile:{g:'P',n:0}, flip:0, bin:null};
+const entryOf=p=>p?{tile:p.tile, flip:p.flip, bin:p.bin}:EMPTY_ENTRY;
+function encEntry(e){ if(e.raw!=null) return e.raw; if(!e.bin) return 0; const s=Math.max(0,slotOf(e.bin.g,e.bin.b)); return (tileNum(e.tile)&0x3FF)|((e.flip&1)<<10)|((e.flip&2)<<10)|(s<<12); }
+function blockCells(im,bx,by){ return [0,1,2,3].map(s=>im.cells[(by*2+(s>>1))*im.tw+bx*2+(s&1)]); }
+// sfondo: un blocco di un'immagine, oppure (modalità aggiungi) un blocco già esistente nel blockset (voci copiate così come sono)
+function bgOf(img, byId){
+  const r=img.bg; if(!r) return null;
+  if(r.existing){ if(!addActive()) return null; const b=state.exInfo.groups.S.blocks[r.slot]; if(!b||b.empty) return null; return {entries:b.words.slice(0,4).map(w=>({raw:w})), existing:r.slot}; }
+  const b=byId.get(r.imageId);
+  if(!b || !(b.img.target==='P'||b.img.target===img.target) || r.bx>=b.tw/2 || r.by>=b.th/2) return null;
+  return {entries:blockCells(b,r.bx,r.by).map(c=>entryOf(c.parts[0]))};
+}
+// modalità aggiungi: decide in quale casella del blockset (0-383) va ogni blocco nuovo
+function placeBlocks(imgs){
+  const exB=state.exInfo.groups.S.blocks, N=exB.length, MAX=MAX_BLOCKS.S;
+  const occupied=s=> s<N && !exB[s].empty;
+  const taken=new Map(), conflicts=[], unplaced=[], keys=new Map();
+  for(const im of imgs){
+    const list=[]; im.blocks.forEach((b,i)=>{ if(b) list.push(i); });
+    im.anchor=null; if(!list.length) continue;
+    const pl=im.img.place, rect=state.placeMode!=='fill' && im.bw<=8;
+    const target=(a,i)=>a+Math.floor(i/im.bw)*8+(i%im.bw);
+    if(rect){
+      const fits=a=> a%8+im.bw<=8 && list.every(i=>{ const s=target(a,i); return s<MAX && !taken.has(s) && !occupied(s); });
+      let a = pl ? pl.slot : -1;
+      if(a<0) for(let s=0;s<MAX;s++) if(fits(s)){ a=s; break; }
+      if(a<0){ unplaced.push({im, n:list.length, reason:'spazio'}); continue; }
+      im.anchor=a;
+      for(const i of list){
+        const s=target(a,i), b=im.blocks[i];
+        if(s>=MAX || a%8+im.bw>8){ conflicts.push({im,i,slot:s,kind:'fuori'}); continue; }
+        if(taken.has(s)){ conflicts.push({im,i,slot:s,kind:'altro',other:taken.get(s).im}); continue; }
+        if(occupied(s) && !(pl&&pl.overwrite)) conflicts.push({im,i,slot:s,kind:'esistente'});
+        taken.set(s,{im,i}); b.ref={g:'S',n:s};
+      }
+    } else {
+      let miss=0;
+      for(const i of list){
+        const b=im.blocks[i], key=b.content.words.join(',')+'|'+b.content.attr;
+        if(keys.has(key)){ b.ref={g:'S',n:keys.get(key)}; continue; }
+        let s=0; while(s<MAX && (taken.has(s)||occupied(s))) s++;
+        if(s>=MAX){ miss++; continue; }
+        taken.set(s,{im,i}); keys.set(key,s); b.ref={g:'S',n:s};
+      }
+      if(miss) unplaced.push({im, n:miss, reason:'spazio'});
+    }
+  }
+  const overwrite=[...taken.keys()].filter(occupied).length;
+  return {taken, conflicts, unplaced, N, overwrite, added:taken.size-overwrite};
+}
+function buildBlocks(imgs, byId){
+  const add=addActive(), out={P:[],S:[]}, keys={P:new Map(),S:new Map()}, shape=state.blockLayout==='shape' && !add;
+  const E4=[EMPTY_ENTRY,EMPTY_ENTRY,EMPTY_ENTRY,EMPTY_ENTRY];
+  const emptyBlock={entries:[...E4,...E4], words:new Array(8).fill(0), attr:0, empty:true};
+  for(const G of ['P','S']) for(const im of imgs.filter(i=>i.img.target===G)){
+    const bw=im.tw/2, bh=im.th/2, modes=im.img.blockModes||{}, bg=bgOf(im.img,byId);
+    im.bw=bw; im.bh=bh; im.blocks=new Array(bw*bh).fill(null); im.conflicts=0;
+    for(let by=0;by<bh;by++){
+      if(shape) while(out[G].length%8) out[G].push(emptyBlock);
+      for(let bx=0;bx<bw;bx++){
+        const cells=blockCells(im,bx,by), mode=modes[bx+','+by]||'bottom';
+        const hasSplit=cells.some(c=>c.parts.length>1), hasTr=cells.some(c=>c.empty||c.orig.includes(TRANSP));
+        if(cells.every(c=>c.empty) && !bg){ if(shape) out[G].push(emptyBlock); continue; }
+        const P0=c=>entryOf(c.parts[0]), P1=c=>entryOf(c.parts[1]);
+        let bottom, top, attr=LAYER_NORMAL, conflict=null, usesBg=false;
+        if(hasSplit){ bottom=cells.map(P0); top=cells.map(P1); attr=LAYER_COVERED; if(mode==='top') conflict='top'; else if(bg&&hasTr) conflict='bg'; }
+        else if(bg && hasTr){ bottom=bg.entries; top=cells.map(P0); attr=mode==='top'?LAYER_NORMAL:LAYER_COVERED; usesBg=true; }
+        else if(mode==='top'){ bottom=bg?bg.entries:E4; top=cells.map(P0); usesBg=!!bg; }
+        else { bottom=cells.map(P0); top=E4; }
+        if(top.every(e=>!e.bin&&e.raw==null)) attr=LAYER_NORMAL;   // layer sopra vuoto: il tipo non conta, così i doppioni si uniscono
+        const entries=[...bottom,...top], words=entries.map(encEntry), key=words.join(',')+'|'+attr;
+        const content={entries,words,attr,from:{imageId:im.id,bx,by}};
+        if(conflict) im.conflicts++;
+        if(add && G==='S'){ im.blocks[by*bw+bx]={content,ref:null,mode,attr,conflict,usesBg}; continue; }
+        let ref=shape?null:((G==='S'&&keys.P.get(key))||keys[G].get(key));
+        if(!ref){ ref={g:G,n:out[G].length}; out[G].push(content); if(!keys[G].has(key)) keys[G].set(key,ref); }
+        im.blocks[by*bw+bx]={content:out[G][ref.n],ref,mode,attr,conflict,usesBg};
+      }
+    }
+  }
+  if(add) out.place=placeBlocks(imgs.filter(i=>i.img.target==='S'));
+  return out;
+}
+function blockNum(ref){ return (ref.g==='S'?0x280:0)+ref.n; }
+function drawBlock(res, d, W, ox, oy, blk){
+  for(let i=0;i<8;i++){
+    const e=blk.entries[i];
+    if(e.raw!=null){ drawExWord(d,W,ox+((i&1)<<3),oy+((i&2)<<2),e.raw); continue; }
+    if(!e.bin) continue;
+    const ft=res.groups[e.tile.g].finals[e.tile.n], pal=res.groups[e.bin.g].pals[e.bin.b], data=flipArr(ft.data,e.flip,Uint8Array);
+    const tx=ox+((i&1)<<3), ty=oy+((i&2)<<2);
+    for(let p=0;p<64;p++){ const idx=data[p]; if(!idx) continue; const [r,g,b]=gbaToRgb(pal[idx]); const o=((ty+(p>>3))*W+tx+(p&7))*4; d[o]=r; d[o+1]=g; d[o+2]=b; d[o+3]=255; }
+  }
+}
+function renderBlocksView(res, im){
+  const out=new ImageData(im.W,im.H);
+  im.blocks.forEach((b,i)=>{ if(b) drawBlock(res,out.data,im.W,(i%im.bw)*16,Math.floor(i/im.bw)*16,b.content); });
+  return out;
+}
+
+function renderResult(res, im){
+  const out=new ImageData(im.W,im.H), d=out.data;
+  for(const cell of im.seq){
+    for(const p of [...cell.parts].sort((a,b)=>a.layer-b.layer)){
+      const ft=res.groups[p.tile.g].finals[p.tile.n], pal=res.groups[p.bin.g].pals[p.bin.b], data=flipArr(ft.data,p.flip,Uint8Array);
+      for(let y=0;y<8;y++) for(let x=0;x<8;x++){ const idx=data[y*8+x]; if(!idx) continue; const [r,g,b]=gbaToRgb(pal[idx]); const o=((cell.ty*8+y)*im.W+cell.tx*8+x)*4; d[o]=r; d[o+1]=g; d[o+2]=b; d[o+3]=255; }
+    }
+  }
+  return out;
+}
+function pxToImageData(px,W,H){ const out=new ImageData(W,H), d=out.data; for(let i=0;i<px.length;i++){ if(px[i]===TRANSP) continue; const [r,g,b]=gbaToRgb(px[i]); d[i*4]=r; d[i*4+1]=g; d[i*4+2]=b; d[i*4+3]=255; } return out; }
+function origImageData(img){ const W=Math.ceil(img.w/16)*16, H=Math.ceil(img.h/16)*16, out=new ImageData(W,H); for(let y=0;y<img.h;y++) out.data.set(img.rgba.subarray(y*img.w*4,(y+1)*img.w*4), y*W*4); return out; }
+function groupStats(res,G){
+  const g=res.groups[G];
+  if(G==='S' && res.add){
+    // modalità aggiungi: conteggi delle sole aggiunte
+    const pl=res.blocks.place, newTiles=g.finals.filter(f=>f&&!f.existing).length;
+    return {tiles:newTiles, pals:g.extra, colors:g.added.reduce((s,a)=>s+a.length,0), blocks:pl?pl.added:0,
+      recycled:g.finals.filter(f=>f&&f.recycled).length, overwrite:pl?pl.overwrite:0, unplacedBlocks:pl?pl.unplaced.reduce((s,u)=>s+u.n,0):0, conflicts:pl?pl.conflicts.length:0};
+  }
+  return {tiles:g.finals.length-(g.exTiles||0), pals:g.bins.length, colors:g.bins.reduce((s,b)=>s+b.length,0), blocks:res.blocks[G].length};
+}
+
+// ============================================================ consigli
+function imgName(id){ const i=state.images.find(x=>x.id===id); return i?i.name:'?'; }
+function sigOf(s){ return s.kind+':'+(s.group||'')+':'+(s.imageId||'')+':'+(s.slots||[]).join('.')+':'+(s.subs||[]).map(x=>x.imageId+'.'+x.from+'.'+x.to).sort().join('|'); }
+function subsStats(res, subs){
+  let maxD=0, px=0, tot=0, wsum=0; const imgsAff=new Set();
+  const byImg=new Map(); for(const s of subs){ if(!byImg.has(s.imageId)) byImg.set(s.imageId,new Map()); byImg.get(s.imageId).set(s.from,s.to); maxD=Math.max(maxD,dE(s.from,s.to)); imgsAff.add(s.imageId); }
+  for(const [id,m] of byImg){ const im=res.byId.get(id); if(!im) continue; for(const c of im.px){ if(c===TRANSP) continue; tot++; const t=m.get(c); if(t!==undefined){ px++; wsum+=dE(c,t); } } }
+  return {maxD, px, pct: tot? px/tot*100 : 0, avg: px? wsum/px : 0, imgs:[...imgsAff]};
+}
+// prova a svuotare la palette k del gruppo G spostando i suoi tile nelle altre, adattando i colori mancanti
+function simulateEliminate(res,G,k){
+  const g=res.groups[G]; if(g.bins.length<2) return null;
+  const others=g.bins.map((b,i)=>({i,set:new Set(b),cap:CAP})).filter(o=>o.i!==k);
+  const members=g.sets.filter((s,i)=>g.assign[i]===k).sort((a,b)=>b.colors.length-a.colors.length);
+  return distributeSets(members, others);
+}
+// modalità aggiungi: fa entrare nelle palette esistenti i tile rimasti fuori, adattando i colori che non trovano posto
+function simulateInto(res){
+  const g=res.groups.S, targets=[];
+  g.fixed.forEach((f,b)=>{
+    if(!f.usable) return;
+    const set=new Set(g.palMap[b].keys()), claimed=f.readOnly?0:[...g.palMap[b].values()].filter(i=>!f.usedIdx.has(i)).length;
+    targets.push({i:b, set, cap:set.size+(f.readOnly?0:Math.max(0,15-f.usedIdx.size-claimed))});
+  });
+  return distributeSets(g.unplacedSets.slice().sort((a,b)=>b.colors.length-a.colors.length), targets);
+}
+// distribuisce i set di colori nei contenitori (cap = colori massimi); i colori che non ci stanno vengono mappati sul più vicino
+function distributeSets(members, others){
+  const votes=new Map();
+  for(const s of members){
+    const w=new Map(), per=[];
+    for(const u of s.us){ const uc=countColors(u.px); per.push([u,uc]); for(const [c,n] of uc) w.set(c,(w.get(c)||0)+n*u.occ); }
+    let best=null;
+    for(const o of others){
+      const missing=s.colors.filter(c=>!o.set.has(c)), free=o.cap-o.set.size;
+      let add, map=[], cost=0, maxD=0;
+      if(missing.length<=Math.max(free,0)) add=missing;
+      else {
+        const nd=c=>{ let bd=Infinity,bt=null; for(const x of o.set){ const d=dE(c,x); if(d<bd){bd=d;bt=x;} } return [bd,bt]; };
+        const ranked=missing.map(c=>({c,score:nd(c)[0]*w.get(c)})).sort((a,b)=>b.score-a.score);
+        add=ranked.slice(0,Math.max(free,0)).map(r=>r.c);
+        const pal=new Set([...o.set,...add]);
+        for(const r of ranked.slice(Math.max(free,0))){ let bd=Infinity,bt=null; for(const x of pal){ const d=dE(r.c,x); if(d<bd){bd=d;bt=x;} } map.push([r.c,bt]); cost+=bd*w.get(r.c); maxD=Math.max(maxD,bd); }
+      }
+      if(!best||cost<best.cost||(cost===best.cost&&maxD<best.maxD)) best={o,add,map,cost,maxD};
+    }
+    if(!best) continue;
+    for(const c of best.add) best.o.set.add(c);
+    for(const [from,to] of best.map) for(const [u,uc] of per){ const n=uc.get(from); if(!n) continue; for(const [id,occ] of u.imgs){ const key=id+':'+from; if(!votes.has(key)) votes.set(key,new Map()); const v=votes.get(key); v.set(to,(v.get(to)||0)+n*occ); } }
+  }
+  const subs=[];
+  for(const [key,v] of votes){ const [id,from]=key.split(':').map(Number); let bt=null,bw=-1; for(const [to,wt] of v) if(wt>bw){bw=wt;bt=to;} subs.push({imageId:id,from,to:bt}); }
+  return subs;
+}
+function nearDupSubs(res,G,thr=3){
+  const counts=new Map(), where=new Map();
+  for(const im of res.imgs){ if(im.img.target!==G) continue; for(const c of im.px){ if(c===TRANSP) continue; counts.set(c,(counts.get(c)||0)+1); if(!where.has(c)) where.set(c,new Set()); where.get(c).add(im.id); } }
+  const cols=[...counts.keys()]; if(cols.length>1200) return [];
+  const pairs=[]; for(let i=0;i<cols.length;i++) for(let j=i+1;j<cols.length;j++){ const d=dE(cols[i],cols[j]); if(d<thr) pairs.push([cols[i],cols[j],d]); }
+  pairs.sort((a,b)=>a[2]-b[2]);
+  const par=new Map(cols.map(c=>[c,c])), cw=new Map(counts), mem=new Map(cols.map(c=>[c,[c]]));
+  const find=c=>{ while(par.get(c)!==c) c=par.get(c); return c; };
+  for(const [a,b] of pairs){
+    const ra=find(a), rb=find(b); if(ra===rb) continue;
+    const [keep,drop]=cw.get(ra)>=cw.get(rb)?[ra,rb]:[rb,ra];
+    if(mem.get(drop).some(c=>dE(c,keep)>=thr)) continue;   // nessun colore deve allontanarsi oltre la soglia
+    par.set(drop,keep); cw.set(keep,cw.get(keep)+cw.get(drop)); mem.get(keep).push(...mem.get(drop));
+  }
+  const subs=[]; for(const c of cols){ const r=find(c); if(r!==c) for(const id of where.get(c)) subs.push({imageId:id,from:c,to:r}); }
+  return subs;
+}
+const tick=()=>new Promise(r=>setTimeout(r,0));
+// colori nuovi quasi uguali (ΔE < 3) a colori già presenti nelle palette: usarli non consuma posti liberi
+function nearExistingSubs(res,thr=3){
+  const g=res.groups.S, avail=new Set();
+  g.fixed.forEach(f=>{ if(!f.usable) return; if(f.readOnly) f.colors.forEach(c=>avail.add(c)); else f.usedIdx.forEach(i=>avail.add(f.pal[i])); });
+  const av=[...avail], subs=[];
+  for(const im of res.imgs){ const seen=new Set(); for(const c of im.px){ if(c===TRANSP||avail.has(c)||seen.has(c)) continue; seen.add(c); let bd=Infinity,bt=null; for(const x of av){ const d=dE(c,x); if(d<bd){bd=d;bt=x;} } if(bd<thr) subs.push({imageId:im.id,from:c,to:bt}); } }
+  return subs;
+}
+async function addSuggestions(res,out,token){
+  const g=res.groups.S, st=groupStats(res,'S');
+  // a) grafica che non entra nelle palette esistenti
+  if(g.extra){
+    await tick(); if(token!==state.suggToken) return;
+    const subs=simulateInto(res);
+    if(subs.length){ const r2=run([...state.decisions,{kind:'sub',subs}]), a2=groupStats(r2,'S'); if(a2.pals<st.pals) out.push({kind:'fit', group:'S', subs, before:st, after:a2, res2:r2, st:subsStats(res,subs)}); }
+  }
+  // b) colori nuovi quasi identici a colori già nelle palette
+  await tick(); if(token!==state.suggToken) return;
+  const ne=nearExistingSubs(res);
+  if(ne.length){ const r2=run([...state.decisions,{kind:'sub',subs:ne}]), a2=groupStats(r2,'S'); if(a2.pals<st.pals || a2.colors<st.colors) out.push({kind:'nearEx', group:'S', subs:ne, before:st, after:a2, res2:r2, st:subsStats(res,ne)}); }
+  // c) tile finiti: riciclare quelli che nessun blocco usa?
+  const exT=state.exInfo.tS.length, unused=(state.exInfo.groups.S.unusedTiles||[]).length, over=exT+st.tiles-st.recycled-GROUPS.S.maxTiles;
+  if(over>0 && unused && !state.decisions.some(d=>d.kind==='recycle')) out.push({kind:'recycle', group:'S', need:over, unused});
+  // d) posizionamento dei blocchi
+  const pl=res.blocks.place;
+  for(const im of res.imgs){
+    const cs=pl.conflicts.filter(c=>c.im.id===im.id), ex=cs.filter(c=>c.kind==='esistente'), oth=cs.filter(c=>c.kind!=='esistente');
+    if(ex.length) out.push({kind:'placeOver', imageId:im.id, group:'S', slots:ex.map(c=>c.slot)});
+    if(oth.length) out.push({kind:'placeBad', imageId:im.id, group:'S', n:oth.length, other:(oth.find(c=>c.other)||{}).other});
+    const un=pl.unplaced.find(u=>u.im.id===im.id); if(un) out.push({kind:'noSpace', imageId:im.id, group:'S', n:un.n, w:im.bw, h:im.bh});
+  }
+}
+async function computeSuggestions(){
+  const token=++state.suggToken, res=state.result, out=[];
+  state.suggBusy=true; state.suggestions=[]; renderSuggestions();
+  const decided=new Set(state.decisions.filter(d=>d.kind==='overflow').map(d=>d.imageId));
+  // 1) tile con più di 15 colori
+  for(const im of res.imgs){
+    if(!im.overflow.length || decided.has(im.id)) continue;
+    await tick(); if(token!==state.suggToken) return;
+    const resSplit=run([...state.decisions,{kind:'overflow',imageId:im.id,mode:'split'}]);
+    const G=im.img.target, a=groupStats(res,G), b=groupStats(resSplit,G);
+    const worst=im.overflow.reduce((w,c)=>c.err>w.err?c:w, im.overflow[0]);
+    const splitErr=resSplit.byId.get(im.id).overflow.reduce((m,c)=>Math.max(m,c.err),0);
+    out.push({kind:'overflow', imageId:im.id, group:G, n:im.overflow.length, maxCols:Math.max(...im.overflow.map(c=>c.ncol)), reduce:{...a, err:worst.err}, split:{...b, err:splitErr}, worst});
+  }
+  // 1b) blocchi che servirebbero 3 layer (tile divisi + sfondo o "sopra il giocatore")
+  for(const im of res.imgs) if(im.conflicts) out.push({kind:'blockConflict', imageId:im.id, group:im.img.target, n:im.conflicts,
+    top:im.blocks.filter(b=>b&&b.conflict==='top').length, bg:im.blocks.filter(b=>b&&b.conflict==='bg').length});
+  if(res.add){
+    await addSuggestions(res,out,token); if(token!==state.suggToken) return;
+    state.suggestions=out; state.suggBusy=false; renderSuggestions(); return;
+  }
+  // 2) colori quasi identici  3) risparmia una palette
+  for(const G of ['P','S']){
+    const g=res.groups[G]; if(!g.bins.length) continue;
+    const before=groupStats(res,G);
+    await tick(); if(token!==state.suggToken) return;
+    const nd=nearDupSubs(res,G);
+    if(nd.length){
+      const r2=run([...state.decisions,{kind:'sub',subs:nd}]), after=groupStats(r2,G);
+      const cfg=GROUPS[G], tight=before.pals>cfg.maxPals || before.colors>cfg.maxPals*CAP-8;
+      if(after.pals<before.pals || (tight && after.colors<before.colors)) out.push({kind:'near', group:G, subs:nd, before, after, res2:r2, st:subsStats(res,nd)});
+    }
+    const cands=[];
+    const order=g.bins.map((b,i)=>i).sort((a,b)=>g.bins[a].length-g.bins[b].length);
+    for(const k of order.slice(0,8)){
+      await tick(); if(token!==state.suggToken) return;
+      const subs=simulateEliminate(res,G,k); if(!subs||!subs.length) continue;
+      const r2=run([...state.decisions,{kind:'sub',subs}]), after=groupStats(r2,G);
+      const otherG=G==='P'?'S':'P';
+      if(after.pals<before.pals && groupStats(r2,otherG).pals<=groupStats(res,otherG).pals){
+        const st=subsStats(res,subs); cands.push({kind:'save', group:G, k, subs, before, after, res2:r2, st});
+      }
+    }
+    cands.sort((a,b)=>(a.st.avg*a.st.px)-(b.st.avg*b.st.px));
+    const seen=new Set();
+    for(const c of cands){ const s=sigOf(c); if(seen.has(s)) continue; seen.add(s); out.push(c); if(seen.size>=2) break; }
+  }
+  if(token!==state.suggToken) return;
+  state.suggestions=out; state.suggBusy=false; renderSuggestions();
+}
+
+// ============================================================ azioni
+function applyDecision(d){ d.id=nextId++; state.decisions.push(d); recompute(); }
+function revokeDecision(id){ state.decisions=state.decisions.filter(d=>d.id!==id); recompute(); }
+function recompute(){
+  state.result = state.images.length ? run(state.decisions) : null;
+  renderAll();
+  if(state.result) computeSuggestions(); else { state.suggestions=[]; state.suggBusy=false; renderSuggestions(); }
+}
+
+// ============================================================ rendering UI
+function idCanvas(imgData, scale=1, maxW=0, maxH=0){
+  const c=document.createElement('canvas'); c.width=imgData.width; c.height=imgData.height; c.getContext('2d').putImageData(imgData,0,0);
+  let s=scale; if(maxW) s=Math.max(1,Math.min(Math.floor(maxW/imgData.width)||1, Math.floor(maxH/imgData.height)||1));
+  c.style.width=imgData.width*s+'px'; c.style.height=imgData.height*s+'px'; return c;
+}
+function renderAll(){ renderExisting(); renderImageList(); renderDecisions(); renderBudget(); renderPalettes(); renderViewer(); renderTileset(); }
+
+function renderImageList(){
+  const list=$('#imgList'); list.innerHTML='';
+  $('#imgCount').textContent=state.images.length?state.images.length:'';
+  const res=state.result;
+  if(state.images.length<2 && state.selected===ALL) state.selected=state.images[0]?.id??null;
+  if(state.images.length>=2 && res){
+    const parts=['P','S'].filter(G=>state.images.some(i=>i.target===G)).map(G=>`${GROUPS[G].name}: ${groupStats(res,G).blocks} blocchi`);
+    const icon=el('div',{class:'thumb allthumb'}, ...state.images.slice(0,4).map(img=>idCanvas(origImageData(img),1,30,30)));
+    list.append(el('div',{class:'imgcard allcard'+(state.selected===ALL?' sel':''), onclick:()=>{ state.selected=ALL; renderAll(); }},
+      icon,
+      el('div',{}, el('div',{class:'name'},'Tutte le immagini'), el('div',{class:'meta'},`Anteprima d'insieme di ${state.images.length} immagini`), el('div',{class:'meta'}, parts.join(' · ')))));
+  }
+  for(const img of state.images){
+    const im=res&&res.byId.get(img.id);
+    const thumb=el('div',{class:'thumb'}, idCanvas(origImageData(img),1,64,64));
+    const seg= state.mode==='add' ? el('span',{class:'small faint'},'→ nel secondario esistente') : el('span',{class:'seg tiny'}, ...['P','S'].map(t=>el('button',{class:img.target===t?'on':'', onclick:e=>{e.stopPropagation(); if(img.target!==t){ img.target=t; recompute(); }}}, t==='P'?'Primario':'Secondario')));
+    const trSel=el('select',{onclick:e=>e.stopPropagation(), onchange:e=>{ const v=e.target.value; if(v==='pick'){ state.picking=img.id; state.selected=img.id; state.view='orig'; renderAll(); return; } img.trans={mode:v, color:img.trans.color}; if(v==='color'&&!img.trans.color) img.trans.color=[img.rgba[0],img.rgba[1],img.rgba[2]]; recompute(); }},
+      el('option',{value:'alpha',selected:img.trans.mode==='alpha'},'Trasp.: alpha'),
+      el('option',{value:'color',selected:img.trans.mode==='color'},'Trasp.: colore'),
+      el('option',{value:'none',selected:img.trans.mode==='none'},'Nessuna'),
+      el('option',{value:'pick'},'Scegli colore…'));
+    const trSw = img.trans.mode==='color' ? el('span',{class:'sw',style:`background:rgb(${img.trans.color.join(',')})`,title:'Colore trasparente'}) : null;
+    const chips=[];
+    if(im){
+      chips.push(el('span',{class:'chip'}, im.ncol+' colori'));
+      for(const b of im.palsUsed.slice(0,6)) chips.push(el('span',{class:'chip',title:'Palette usata'}, el('i',{class:'dot',style:'background:'+slotColor(b.g,b.b)}), 'pal '+slotLabel(b.g,b.b)));
+      if(im.palsUsed.length>6) chips.push(el('span',{class:'chip'}, `+${im.palsUsed.length-6} palette`));
+      if(im.overflow.length){ const m=im.overflow[0].ov; chips.push(el('span',{class:'chip '+(m==='auto'?'warn':'ok')}, im.overflow.length+' tile >15 col. '+(m==='auto'?'(da decidere)':m==='split'?'(2 layer)':'(ridotti)'))); }
+    }
+    const pad=(img.w%16||img.h%16) ? el('div',{class:'meta',style:'color:var(--warn)'}, (img.w%8||img.h%8)?'Lati non multipli di 8: completata con trasparenza':'Completata a multipli di 16 (blocchi)') : null;
+    const card=el('div',{class:'imgcard'+(state.selected===img.id?' sel':''), onclick:()=>{ state.selected=img.id; renderAll(); }},
+      thumb,
+      el('div',{}, el('div',{class:'name',title:img.name}, img.name), el('div',{class:'meta'}, `${img.w}×${img.h} px · ${Math.ceil(img.w/16)*Math.ceil(img.h/16)} blocchi`), pad,
+        el('div',{class:'row'}, seg), el('div',{class:'row'}, trSel, trSw), el('div',{class:'row'}, chips)),
+      el('button',{class:'ghost small x',title:'Rimuovi',onclick:e=>{ e.stopPropagation(); state.images=state.images.filter(i=>i!==img); state.bgCands=state.bgCands.filter(c=>c.imageId!==img.id); for(const o of state.images) if(o.bg&&o.bg.imageId===img.id) o.bg=null; state.decisions=state.decisions.map(d=>d.kind==='sub'?{...d,subs:d.subs.filter(s=>s.imageId!==img.id)}:d).filter(d=>d.kind==='sub'?d.subs.length:d.imageId!==img.id); if(state.selected===img.id) state.selected=state.images[0]?.id??null; recompute(); }},'✕'));
+    list.append(card);
+  }
+}
+function renderDecisions(){
+  $('#decPanel').hidden=!state.decisions.length;
+  const box=$('#decList'); box.innerHTML='';
+  for(const d of state.decisions) box.append(el('div',{class:'dec'}, el('span',{}, d.label||d.kind), el('button',{class:'small',onclick:()=>revokeDecision(d.id)},'Annulla')));
+}
+function renderBudgetAdd(box,res){
+  const st=groupStats(res,'S'), gi=state.exInfo.groups.S, cfg=GROUPS.S, g=res.groups.S;
+  const exT=state.exInfo.tS.length, exB=gi.blocks.filter(b=>!b.empty).length;
+  const bar=(ex,nw,max,cls)=>el('div',{class:'bar'+cls}, el('i',{class:'ex',style:`width:${Math.min(100,ex/max*100)}%`}), el('i',{style:`width:${Math.max(0,Math.min(100-ex/max*100,nw/max*100))}%`}));
+  const newT=st.tiles-st.recycled, tTot=exT+newT, bTot=exB+st.blocks;
+  const overT=tTot>cfg.maxTiles, overB=bTot>MAX_BLOCKS.S||st.unplacedBlocks>0, overP=st.pals>0;
+  const pend=st.conflicts>0;
+  const freeCols=g.fixed.filter(f=>f.usable&&!f.readOnly).reduce((s,f)=>s+15-f.usedIdx.size,0);
+  const status = !state.images.length ? el('span',{class:'chip'},'solo esistente') : (overT||overB||overP) ? el('span',{class:'chip bad'},'non ci sta') : pend ? el('span',{class:'chip warn'},'da confermare') : el('span',{class:'chip ok'},'ci sta');
+  box.append(el('div',{class:'bgroup'},
+    el('div',{class:'bhead'}, el('b',{},'Secondario esistente'), status),
+    el('div',{class:'brow'}, el('span',{class:'muted'},'Tile'), bar(exT,newT,cfg.maxTiles,overT?' bad':tTot/cfg.maxTiles>.9?' warn':''), el('span',{class:overT?'over':''}, `${exT}+${newT} / ${cfg.maxTiles}`)),
+    st.recycled ? el('div',{class:'small faint'}, `${st.recycled} tile nuovi messi al posto di tile non usati (riciclati).`) : null,
+    el('div',{class:'brow'}, el('span',{class:'muted'},'Blocchi'), bar(exB,st.blocks,MAX_BLOCKS.S,overB?' bad':bTot/MAX_BLOCKS.S>.9?' warn':''), el('span',{class:overB?'over':''}, `${exB}+${st.blocks} / ${MAX_BLOCKS.S}`)),
+    st.overwrite ? el('div',{class:'small',style:'color:#ffd37a'}, `${st.overwrite} blocchi nuovi finiscono al posto di blocchi esistenti.`) : null,
+    st.unplacedBlocks ? el('div',{class:'small over'}, `${st.unplacedBlocks} blocchi nuovi non trovano posto.`) : null,
+    el('div',{class:'brow'}, el('span',{class:'muted'},'Colori'), bar(0,st.colors,Math.max(1,freeCols),st.colors>freeCols?' bad':''), el('span',{}, `${st.colors} / ${freeCols} liberi`)),
+    el('div',{class:'small faint'}, 'Colori nuovi scritti nei posti liberi delle palette 7–12. Le palette 0–6 del primario si usano solo così come sono.'),
+    overP ? el('div',{class:'small over'}, `Servirebbero ${st.pals} palette in più: una parte della grafica non entra nelle palette esistenti (vedi Consigli).`) : null));
+}
+function renderBudget(){
+  const box=$('#budget'); box.innerHTML='';
+  const res=state.result;
+  if(res&&res.add){ renderBudgetAdd(box,res); return; }
+  for(const G of ['P','S']){
+    const cfg=GROUPS[G]; const has=res&&state.images.some(i=>i.target===G);
+    const st=has?groupStats(res,G):{tiles:0,pals:0,colors:0,blocks:0};
+    const tPct=st.tiles/cfg.maxTiles*100, overT=st.tiles>cfg.maxTiles, overP=st.pals>cfg.maxPals;
+    const bPct=st.blocks/MAX_BLOCKS[G]*100, overB=st.blocks>MAX_BLOCKS[G];
+    const status = !has ? el('span',{class:'chip'},'vuoto') : (overT||overP||overB) ? el('span',{class:'chip bad'},'fuori budget') : el('span',{class:'chip ok'},'ci sta');
+    const cells=el('div',{class:'palcells'}); for(let i=0;i<Math.max(cfg.maxPals,st.pals);i++) cells.append(el('i',{style: i<st.pals ? 'background:'+(i<cfg.maxPals?slotColor(G,i):EXTRA_COLOR) : ''}));
+    const reuse = G==='S'&&res ? res.utiles.filter(u=>u.group==='S'&&u.bin.g==='P').length : 0;
+    // modalità "aggiungi": la parte grigia della barra è il tileset esistente
+    const exs = state.mode==='add' ? exGroupState(G) : null, gi=exs?.gi;
+    const exT = exs&&exs.e.tiles ? exs.e.tiles.length/32 : 0;
+    const exB = gi&&gi.blocks.length ? gi.blocks.filter(b=>!b.empty).length : 0;
+    const bar=(ex,nw,max,cls)=>el('div',{class:'bar'+cls}, ex?el('i',{class:'ex',style:`width:${Math.min(100,ex/max*100)}%`}):null, el('i',{style:`width:${Math.max(0,Math.min(100-ex/max*100,nw/max*100))}%`}));
+    const tTot=exT+st.tiles, bTot=exB+st.blocks, overT2=tTot>cfg.maxTiles, overB2=bTot>MAX_BLOCKS[G];
+    box.append(el('div',{class:'bgroup'},
+      el('div',{class:'bhead'}, el('b',{},cfg.name), exs&&exs.any&&!has ? el('span',{class:'chip'},'solo esistente') : (exs&&(overT2||overB2)&&has ? el('span',{class:'chip bad'},'fuori budget') : status)),
+      el('div',{class:'brow'}, el('span',{class:'muted'},'Tile'), bar(exT,st.tiles,cfg.maxTiles,(overT2?' bad':tTot/cfg.maxTiles>.85?' warn':'')), el('span',{class:overT2?'over':''}, exT?`${exT}+${st.tiles} / ${cfg.maxTiles}`:`${st.tiles} / ${cfg.maxTiles}`)),
+      el('div',{class:'brow'}, el('span',{class:'muted'},'Blocchi'), bar(exB,st.blocks,MAX_BLOCKS[G],(overB2?' bad':bTot/MAX_BLOCKS[G]>.85?' warn':'')), el('span',{class:overB2?'over':''}, exB?`${exB}+${st.blocks} / ${MAX_BLOCKS[G]}`:`${st.blocks} / ${MAX_BLOCKS[G]}`)),
+      exs&&exs.any ? el('div',{class:'small faint'}, `Grigio = già nel tileset esistente${gi&&gi.blocks.length?` (${gi.blocks.length-exB} blocchi vuoti)`:''}.`) : null,
+      el('div',{class:'brow'}, el('span',{class:'muted'},'Palette'), cells, el('span',{class:overP?'over':''}, `${st.pals} / ${cfg.maxPals}`)),
+      el('div',{class:'brow'}, el('span',{class:'muted'},'Colori'), el('div',{class:'bar'}, el('i',{style:`width:${Math.min(100,st.colors/(cfg.maxPals*CAP)*100)}%;background:var(--accent)`})), el('span',{}, `${st.colors} / ${cfg.maxPals*CAP}`)),
+      reuse ? el('div',{class:'small faint'}, `${reuse} tile del secondario riusano palette del primario`) : null));
+  }
+}
+function renderExistingPalettes(box){
+  const info=state.exInfo; if(!info) return false;
+  let shown=false;
+  for(const G of ['P','S']){
+    const [a,b]=EX_PALS[G], e=state.existing[G]; if(!e.pals.slice(a,b+1).some(Boolean)) continue;
+    if(!shown) box.append(el('div',{class:'small',style:'margin:2px 0 6px;color:var(--text)'}, 'Esistenti (dagli export di HMA)'));
+    shown=true;
+    const gS=info.groups.S, known=G==='S' && !!state.existing.S.blocksFile;
+    box.append(el('div',{class:'small muted',style:'margin:6px 0 4px'}, GROUPS[G].name + (G==='P'?' · condivise con tutte le mappe':'')));
+    const res=state.result&&state.result.add?state.result:null;
+    for(let s=a;s<=b;s++){
+      const pal=res?res.groups.S.pals[s]:e.pals[s]; if(!pal) continue;
+      const used=known ? (gS.usedIdx.get(s)||new Set()) : null;
+      const nw=new Map(res?res.groups.S.added[s].map(x=>[x.idx,x.color]):[]);
+      const users=res?res.imgs.filter(im=>im.palsUsed.some(p=>p.b===s)).map(im=>im.img.name):[];
+      const sws=el('div',{class:'sws'});
+      pal.forEach((c,i)=>{ if(i===0) sws.append(el('i',{class:'sw tr',title:'0: trasparenza'})); else { const isNew=nw.has(i), un=!isNew&&used&&!used.has(i); sws.append(el('i',{class:isNew?'newc':un?'unused':'',style:'background:'+gbaHex(c),title:`${i}: ${gbaHex(c)}`+(isNew?' · NUOVO colore':un?' · nessun blocco lo usa: posto libero':'')})); } });
+      const nUsed=used?used.size:null;
+      let infoTxt = G==='P' ? 'usabile così com\'è (colori in comune)' : used ? (nUsed? `${nUsed}/15 colori usati dai blocchi · ${15-nUsed} liberi` : 'nessun blocco la usa: palette libera') : 'carica i blocchi per sapere quali colori sono liberi';
+      if(nw.size) infoTxt=`${nw.size} colori nuovi · `+infoTxt;
+      if(users.length) infoTxt+=` · usata da ${users.join(', ')}`;
+      box.append(el('div',{class:'palrow exist'+(users.length?' inuse':''), onmouseenter:()=>{ if(res){ state.hlSlot='S'+s; if(state.view==='map') renderViewer(); } }, onmouseleave:()=>{ state.hlSlot=null; if(state.view==='map') renderViewer(); }},
+        el('div',{class:'lab'}, el('i',{class:'dot',style:'background:'+SLOT_COLORS[s]}), el('span',{}, String(s))), sws, el('div',{class:'info',title:infoTxt}, infoTxt)));
+    }
+  }
+  return shown;
+}
+function renderPalettes(){
+  const box=$('#pals'); box.innerHTML='';
+  const ex = state.mode==='add' && renderExistingPalettes(box);
+  const res=state.result; if(!res){ if(!ex) box.append(el('div',{class:'muted small'},'Nessuna palette.')); return; }
+  if(res.add){
+    const g=res.groups.S; if(!g.extra) return;
+    box.append(el('div',{class:'small over',style:'margin:14px 0 6px'}, 'Non entra nelle palette esistenti (vedi Consigli):'));
+    for(let b=13;b<g.bins.length;b++){
+      const sws=el('div',{class:'sws'}); g.pals[b].forEach((c,i)=>sws.append(i===0?el('i',{class:'sw tr'}):i<=g.bins[b].length?el('i',{style:'background:'+gbaHex(c)}):el('i',{class:'free'})));
+      const users=res.imgs.filter(im=>im.palsUsed.some(p=>p.b===b)).map(im=>im.img.name);
+      box.append(el('div',{class:'palrow'}, el('div',{class:'lab'}, el('i',{class:'dot',style:'background:'+EXTRA_COLOR}), el('span',{class:'over'},'fuori')), sws, el('div',{class:'info'}, `${g.bins[b].length} colori · ${users.join(', ')}`)));
+    }
+    return;
+  }
+  if(ex) box.append(el('div',{class:'small',style:'margin:14px 0 6px;color:var(--text)'}, 'Nuova grafica (carica il secondario completo per adattarla alle palette esistenti)'));
+  for(const G of ['P','S']){
+    const g=res.groups[G]; if(!g.bins.length) continue;
+    box.append(el('div',{class:'small muted',style:'margin:6px 0 4px'}, GROUPS[G].name));
+    g.pals.forEach((pal,b)=>{
+      const sws=el('div',{class:'sws'});
+      pal.forEach((c,i)=>{ if(i===0) sws.append(el('i',{class:'sw tr',title:'0: trasparenza'})); else if(i<=g.bins[b].length) sws.append(el('i',{style:'background:'+gbaHex(c), title:`${i}: ${gbaHex(c)} (GBA ${c.toString(16).toUpperCase().padStart(4,'0')})`})); else sws.append(el('i',{class:'free',title:i+': libero'})); });
+      const users=res.imgs.filter(im=>im.palsUsed.some(p=>p.g===G&&p.b===b)).map(im=>im.img.name);
+      const over=slotOf(G,b)<0;
+      const row=el('div',{class:'palrow', onmouseenter:()=>{ state.hlSlot=G+b; if(state.view==='map') renderViewer(); }, onmouseleave:()=>{ state.hlSlot=null; if(state.view==='map') renderViewer(); }},
+        el('div',{class:'lab'}, el('i',{class:'dot',style:'background:'+slotColor(G,b)}), el('span',{class:over?'over':''}, slotLabel(G,b))),
+        sws, el('div',{class:'info',title:users.join(', ')}, `${g.bins[b].length}/15 colori · ${users.join(', ')}`+(over?' · fuori budget!':'')));
+      box.append(row);
+    });
+  }
+}
+const ALL='all';   // state.selected = ALL: vista d'insieme di tutte le immagini
+function isAll(){ return state.selected===ALL && !!state.result && state.result.imgs.length>0; }
+function curImg(){
+  const res=state.result; if(!res) return null;
+  if(state.selected===ALL) return null;
+  if(!res.byId.has(state.selected)) state.selected=state.images[0]?.id??null;
+  return res.byId.get(state.selected)||null;
+}
+// immagine da mostrare per la vista scelta (+ pixel cambiati per "Differenze")
+function viewData(res, im){
+  if(state.view==='orig') return {data:origImageData(im.img), changed:0};
+  if(state.view==='blocks') return {data:renderBlocksView(res,im), changed:0};
+  if(state.view==='diff'){
+    const data=new ImageData(im.W,im.H), r=renderResult(res,im).data, d=data.data; let n=0;
+    for(let i=0;i<im.base.length;i++){
+      const c=im.base[i], o=i*4;
+      const rt=r[o+3]===0?TRANSP:rgbToGba(r[o],r[o+1],r[o+2]);
+      if(c===TRANSP&&rt===TRANSP) continue;
+      if(c!==rt){ d[o]=255; d[o+1]=40; d[o+2]=200; d[o+3]=255; n++; }
+      else { const [R,G,B]=gbaToRgb(c); const y=(R*.3+G*.59+B*.11)*.45+30; d[o]=d[o+1]=d[o+2]=y; d[o+3]=255; }
+    }
+    return {data, changed:n};
+  }
+  return {data:renderResult(res,im), changed:0};
+}
+// foglio d'insieme: prima il primario, poi il secondario; ogni immagine col suo nome sopra (misure in pixel GBA)
+function sheetLayout(res, z, wantW){
+  const LAB=Math.ceil(18/z), GAP=16, ims=res.imgs;
+  const maxW=Math.max(...ims.map(i=>i.W)), sumW=ims.reduce((s,i)=>s+i.W+GAP,0)-GAP;
+  const W=Math.max(maxW, Math.min(sumW, wantW||384));
+  const items=[], heads=[]; let y=0;
+  for(const G of ['P','S']){
+    const list=ims.filter(i=>i.img.target===G); if(!list.length) continue;
+    heads.push({y, G}); y+=LAB;
+    let x=0, rowH=0;
+    for(const im of list){
+      if(x>0 && x+im.W>W){ x=0; y+=rowH+GAP; rowH=0; }
+      items.push({im, x, y:y+LAB}); x+=im.W+GAP; rowH=Math.max(rowH, im.H+LAB);
+    }
+    y+=rowH+GAP;
+  }
+  return {items, heads, W, H:Math.max(1,y-GAP), lab:LAB};
+}
+function renderViewer(){
+  document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===state.view));
+  const cv=$('#view'), res=state.result, all=isAll(), im=all?null:curImg(), has=all||!!im;
+  $('#vEmpty').hidden=has; cv.hidden=!has; $('#viewer').classList.toggle('picking',!!state.picking);
+  $('#viewer').classList.toggle('painting',state.view==='blocks');
+  $('#blockTools').hidden=!(has&&state.view==='blocks');
+  const leg=$('#vLegend'); leg.innerHTML='';
+  if(!has){ $('#vTitle').textContent='Anteprima'; cv._items=null; return; }
+  $('#vTitle').textContent=all?'Tutte le immagini':im.img.name;
+  if(state.view==='blocks') renderBlockTools(im);
+  const maxW=$('#viewer').clientWidth-24;
+  let z, lay;
+  if(all){
+    // zoom 2-3 per leggere i numeri dei blocchi, e il foglio largo quanto il riquadro
+    const widest=Math.max(...res.imgs.map(i=>i.W));
+    z=state.zoom||Math.max(1,Math.min(3,Math.floor(maxW/widest)));
+    lay=sheetLayout(res,z,Math.floor(maxW/z));
+  } else {
+    z=state.zoom||Math.max(1,Math.min(8,Math.floor(maxW/im.W),Math.floor(560/im.H)));
+    lay={items:[{im,x:0,y:0}], heads:[], W:im.W, H:im.H, lab:0};
+  }
+  $('#zLab').textContent=(state.zoom?'':'auto ')+z+'×';
+  cv.width=lay.W*z; cv.height=lay.H*z;
+  const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  if(all){ ctx.fillStyle='rgba(8,6,20,.55)'; ctx.fillRect(0,0,cv.width,cv.height); }
+  let changed=0, conflicts=0, overflow=false; const pals=new Map();
+  for(const it of lay.items){
+    const ox=it.x*z, oy=it.y*z, w=it.im.W*z, h=it.im.H*z, v=viewData(res,it.im);
+    changed+=v.changed; conflicts+=it.im.conflicts||0; overflow=overflow||it.im.overflow.length>0;
+    for(const b of it.im.palsUsed) pals.set(b.g+b.b,b);
+    const off=document.createElement('canvas'); off.width=it.im.W; off.height=it.im.H; off.getContext('2d').putImageData(v.data,0,0);
+    ctx.clearRect(ox,oy,w,h); ctx.drawImage(off,ox,oy,w,h);
+    if(state.view==='map') drawMapOverlay(ctx,it.im,z,ox,oy);
+    if(state.view==='blocks') drawBlockOverlay(ctx,it.im,z,ox,oy);
+    if(state.grid && z>=2) drawGrid(ctx,it.im,z,ox,oy);
+    if(all){
+      ctx.strokeStyle='rgba(255,255,255,.28)'; ctx.lineWidth=1; ctx.strokeRect(ox-0.5,oy-0.5,w+1,h+1);
+      ctx.font='600 12px system-ui'; ctx.textAlign='left'; ctx.textBaseline='bottom'; ctx.fillStyle='#e6e0f5';
+      const nb=it.im.blocks?it.im.blocks.filter(Boolean).length:0;
+      ctx.fillText(`${it.im.img.name} · ${nb} blocchi`, ox, oy-4);
+    }
+  }
+  for(const hd of lay.heads){
+    ctx.font='700 11px system-ui'; ctx.textAlign='left'; ctx.textBaseline='bottom'; ctx.fillStyle='#ffc49a';
+    const st=groupStats(res,hd.G);
+    ctx.fillText(`${GROUPS[hd.G].name.toUpperCase()} · ${st.blocks} blocchi unici · ${st.tiles} tile · ${st.pals} palette`, 0, (hd.y+lay.lab)*z-4);
+  }
+  if(state.view==='diff') leg.append(el('span',{}, el('span',{class:'sw',style:'background:#ff28c8'}), ` ${changed} pixel cambiati rispetto all'immagine convertita in colori GBA`));
+  if(state.view==='map'){
+    leg.append(...[...pals.values()].map(b=>el('span',{}, el('i',{class:'dot',style:'background:'+slotColor(b.g,b.b)}),' pal '+slotLabel(b.g,b.b))));
+    if(overflow) leg.append(el('span',{},'▢ bordo rosso: tile >15 colori da decidere · giallo: decisione presa · tile diviso in diagonale: 2 layer'));
+  }
+  if(state.view==='blocks'){
+    leg.append(el('span',{},'▼ sotto il giocatore · ▲ (blu) sopra il giocatore · numero = blocco in HMA · ★ blocco usabile come sfondo · scuro = vuoto, non esportato'));
+    if(all) leg.append(el('span',{},'Blocchi con lo stesso numero sono uguali: nel blockset ce n\'è uno solo.'));
+    if(conflicts) leg.append(el('span',{style:'color:#ff9a9d'},`▢ rosso: ${conflicts} blocchi servirebbero 3 layer (vedi Consigli)`));
+  }
+  cv._z=z; cv._items=lay.items;
+}
+// immagine sotto il mouse nel visualizzatore (coordinate locali in pixel GBA)
+function hitView(e){
+  const cv=$('#view'); if(!cv._items) return null;
+  const r=cv.getBoundingClientRect(), z=cv._z, sx=Math.floor((e.clientX-r.left)/z), sy=Math.floor((e.clientY-r.top)/z);
+  for(const it of cv._items){ const px=sx-it.x, py=sy-it.y; if(px>=0&&py>=0&&px<it.im.W&&py<it.im.H) return {im:it.im, px, py}; }
+  return null;
+}
+function drawGrid(ctx,im,z,ox,oy){
+  const T=8*z, w=im.W*z, h=im.H*z;
+  for(let x=0;x<=im.tw;x++){ ctx.fillStyle= x%2?'rgba(255,255,255,.13)':'rgba(255,255,255,.32)'; ctx.fillRect(ox+x*T-(x===im.tw?1:0),oy,1,h); }
+  for(let y=0;y<=im.th;y++){ ctx.fillStyle= y%2?'rgba(255,255,255,.13)':'rgba(255,255,255,.32)'; ctx.fillRect(ox,oy+y*T-(y===im.th?1:0),w,1); }
+}
+function drawMapOverlay(ctx,im,z,ox,oy){
+  const T=8*z;
+  ctx.font=`600 ${Math.max(9,Math.min(14,T*0.42))}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle';
+  for(const cell of im.seq){
+    const x=ox+cell.tx*T, y=oy+cell.ty*T;
+    if(cell.empty) continue;
+    const bins=cell.parts.map(p=>p.bin);
+    const hl=state.hlSlot; const dim=hl && !bins.some(b=>b.g+b.b===hl);
+    ctx.globalAlpha=dim?0.1:0.3;
+    if(bins.length===1){ ctx.fillStyle=slotColor(bins[0].g,bins[0].b); ctx.fillRect(x,y,T,T); }
+    else { ctx.fillStyle=slotColor(bins[0].g,bins[0].b); ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+T,y); ctx.lineTo(x,y+T); ctx.fill(); ctx.fillStyle=slotColor(bins[1].g,bins[1].b); ctx.beginPath(); ctx.moveTo(x+T,y); ctx.lineTo(x+T,y+T); ctx.lineTo(x,y+T); ctx.fill(); }
+    if(dim){ ctx.globalAlpha=0.6; ctx.fillStyle='#000'; ctx.fillRect(x,y,T,T); }
+    ctx.globalAlpha=1;
+    if(T>=16 && !dim){ const txt=bins.map(b=>slotLabel(b.g,b.b)).join('/'); ctx.fillStyle='#000'; ctx.fillText(txt,x+T/2+1,y+T/2+1); ctx.fillStyle='#fff'; ctx.fillText(txt,x+T/2,y+T/2); }
+    if(cell.ov){ ctx.strokeStyle=cell.ov==='auto'?'#ff3b3b':'#ffd400'; ctx.lineWidth=2; ctx.strokeRect(x+1,y+1,T-2,T-2); }
+  }
+}
+function drawBlockOverlay(ctx,im,z,ox,oy){
+  const B=16*z, modes=im.img.blockModes||{};
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  for(let by=0;by<im.bh;by++) for(let bx=0;bx<im.bw;bx++){
+    const b=im.blocks[by*im.bw+bx], x=ox+bx*B, y=oy+by*B, mode=modes[bx+','+by]||'bottom';
+    if(!b){ ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fillRect(x,y,B,B); continue; }
+    if(mode==='top'){ ctx.fillStyle='rgba(80,150,255,.18)'; ctx.fillRect(x,y,B,B); }
+    if(b.conflict || !b.ref){ ctx.strokeStyle='#ff3b3b'; ctx.lineWidth=2; ctx.strokeRect(x+1,y+1,B-2,B-2); }
+    if(B>=32){
+      ctx.font=`600 ${Math.max(9,Math.min(13,B*0.22))}px system-ui`;
+      const lab=b.ref?blockNum(b.ref).toString(16).toUpperCase().padStart(3,'0'):' — ';
+      ctx.fillStyle='rgba(0,0,0,.65)'; ctx.fillRect(x+2,y+2,B*0.62,B*0.3);
+      ctx.fillStyle='#fff'; ctx.fillText((mode==='top'?'▲':'▼')+lab, x+2+B*0.31, y+2+B*0.15);
+    }
+  }
+  for(const c of state.bgCands) if(c.imageId===im.id){ ctx.fillStyle='#ffd400'; ctx.font=`700 ${Math.max(10,B*0.3)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('★',ox+c.bx*B+B-B*0.2,oy+c.by*B+B-B*0.2); }
+}
+function bgOptions(img){
+  const opts=[];
+  for(const c of state.bgCands){ const o=state.images.find(i=>i.id===c.imageId); if(o) opts.push({...c,label:`★ ${o.name} (${c.bx},${c.by})`,target:o.target}); }
+  for(const o of state.images) if(o.w<=16&&o.h<=16&&!opts.some(p=>p.imageId===o.id&&!p.bx&&!p.by)) opts.push({imageId:o.id,bx:0,by:0,label:o.name,target:o.target});
+  if(img.bg&&img.bg.existing) opts.unshift({existing:true, slot:img.bg.slot, label:`blocco esistente ${hex3(0x280+img.bg.slot)}`, target:'S'});
+  return opts.filter(o=>o.target==='P'||o.target===img.target);
+}
+function renderBlockTools(im){
+  document.querySelectorAll('#brushSeg button').forEach(b=>b.classList.toggle('on',b.dataset.b===state.brush));
+  $('#layoutSel').value=state.blockLayout; $('#layoutSel').parentElement.hidden=addActive();
+  $('#bgLabel').hidden=!im; $('#bgNote').hidden=!!im;
+  if(!im) return;
+  const sel=$('#bgSel'); sel.innerHTML='';
+  const img=im.img, opts=bgOptions(img);
+  sel.append(el('option',{value:''},'nessuno'));
+  opts.forEach((o,i)=>sel.append(el('option',{value:i, selected: img.bg&&(o.existing ? img.bg.existing&&img.bg.slot===o.slot : img.bg.imageId===o.imageId&&img.bg.bx===o.bx&&img.bg.by===o.by)},o.label)));
+  if(!opts.length) sel.append(el('option',{disabled:true}, addActive()?'(★ su un blocco, o "Sfondo da un blocco esistente" nel pannello Generato)':'(segna un blocco con ★, o carica un PNG 16×16)'));
+  sel.onchange=()=>{ const o=opts[sel.value]; img.bg=o?(o.existing?{existing:true,slot:o.slot}:{imageId:o.imageId,bx:o.bx,by:o.by}):null; recompute(); };
+}
+// pannello "Generato" in modalità aggiungi: il blockset / i tile esistenti, come in HMA
+const OBJ_COLORS=['#ffb020','#6ea8fe','#f06292','#4cc38a','#b388ff','#4dd0e1','#ff8a65','#dce775'];
+function objColor(id){ const i=state.images.findIndex(x=>x.id===id); return OBJ_COLORS[(i<0?0:i)%OBJ_COLORS.length]; }
+function placeTargetObj(){
+  const res=state.result; if(!res) return null;
+  const list=res.imgs.filter(im=>im.blocks&&im.blocks.some(Boolean));
+  let im=list.find(x=>x.id===state.placeObj); if(!im){ im=list[0]||null; state.placeObj=im?im.id:null; }
+  return im;
+}
+function renderPlaceBar(show){
+  $('#placeBar').hidden=!show; if(!show) return;
+  const res=state.result, sel=$('#placeObj'); sel.innerHTML='';
+  const list=res?res.imgs.filter(im=>im.blocks&&im.blocks.some(Boolean)):[], cur=placeTargetObj();
+  for(const im of list) sel.append(el('option',{value:im.id,selected:cur&&im.id===cur.id}, `${im.img.name} (${im.blocks.filter(Boolean).length} blocchi)`));
+  if(!list.length) sel.append(el('option',{disabled:true},'carica qualche immagine'));
+  $('#placeMode').value=state.placeMode;
+  $('#placeBg').classList.toggle('primary',state.pickExBg);
+  $('#placeHint').textContent= state.pickExBg ? 'Clicca un blocco esistente da usare come sfondo.' : state.placeMode==='rect' ? 'Clicca una casella: l\'oggetto selezionato parte da lì (angolo in alto a sinistra).' : 'I blocchi vanno da soli nei primi posti liberi, senza doppioni.';
+}
+// pannello "Generato" in modalità aggiungi: blockset / tile esistenti, con le aggiunte piazzate sopra
+function renderExistingSheet(cv,G){
+  const info=state.exInfo, res=state.result; if(!info) return false;
+  const gi=info.groups[G], z=3, add=G==='S'&&res&&res.add, pl=add?res.blocks.place:null;
+  renderPlaceBar(add && state.tsKind==='blocks');
+  if(state.tsKind==='blocks'){
+    if(!gi.blocks.length) return false;
+    const n=Math.max(gi.blocks.length, MAX_BLOCKS[G]), rows=Math.ceil(n/8), img=new ImageData(128,rows*16);
+    gi.blocks.forEach((b,i)=>{ if(!(pl&&pl.taken.has(i))) drawExBlock(img.data,128,(i%8)*16,Math.floor(i/8)*16,b.words); });
+    if(pl) for(const [s,t] of pl.taken) drawBlock(res,img.data,128,(s%8)*16,Math.floor(s/8)*16,t.im.blocks[t.i].content);
+    cv.width=128*z; cv.height=rows*16*z; const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+    const off=document.createElement('canvas'); off.width=128; off.height=rows*16; off.getContext('2d').putImageData(img,0,0);
+    ctx.drawImage(off,0,0,cv.width,cv.height);
+    const B=16*z;
+    for(let i=0;i<n;i++){
+      const x=(i%8)*B, y=Math.floor(i/8)*B, b=gi.blocks[i];
+      if((!b || b.empty) && !(pl&&pl.taken.has(i))){ ctx.fillStyle=b?'rgba(76,195,138,.22)':'rgba(76,195,138,.10)'; ctx.fillRect(x,y,B,B); ctx.strokeStyle='rgba(76,195,138,.7)'; ctx.setLineDash([4,3]); ctx.strokeRect(x+1.5,y+1.5,B-3,B-3); ctx.setLineDash([]); }
+    }
+    ctx.fillStyle='rgba(255,255,255,.12)'; for(let x=1;x<8;x++) ctx.fillRect(x*B,0,1,cv.height); for(let y=1;y<rows;y++) ctx.fillRect(0,y*B,cv.width,1);
+    if(pl){
+      const sel=placeTargetObj();
+      for(const [s,t] of pl.taken){
+        const x=(s%8)*B, y=Math.floor(s/8)*B, over=s<gi.blocks.length&&!gi.blocks[s].empty;
+        if(over && !(t.im.img.place&&t.im.img.place.overwrite)){ ctx.fillStyle='rgba(242,85,90,.35)'; ctx.fillRect(x,y,B,B); }
+        ctx.strokeStyle=objColor(t.im.id); ctx.lineWidth=sel&&sel.id===t.im.id?3:2; ctx.strokeRect(x+1.5,y+1.5,B-3,B-3); ctx.lineWidth=1;
+      }
+    }
+    cv._base=document.createElement('canvas'); cv._base.width=cv.width; cv._base.height=cv.height; cv._base.getContext('2d').drawImage(cv,0,0);
+    const nEmpty=gi.blocks.filter(b=>b.empty).length, beyond=Math.max(0,MAX_BLOCKS[G]-gi.blocks.length);
+    $('#tsInfo').textContent=`${gi.blocks.length} blocchi esistenti · ${nEmpty} vuoti`+(beyond?` · ${beyond} da allocare`:'')+(pl?` · ${pl.taken.size} nuovi piazzati`:'');
+    $('#tsNote').textContent= add ? 'Blockset del secondario, 8 per riga come in HMA. Verde = libero; bordo colorato = blocchi nuovi (un colore per oggetto); rosso = finirebbero sopra blocchi esistenti (da confermare nei Consigli).' : 'Blockset esistente, 8 per riga come in HMA. In verde i posti liberi: blocchi vuoti (nessun pixel) o non ancora allocati.';
+    return true;
+  }
+  const tiles=G==='P'?info.tP:info.tS; if(!tiles) return false;
+  const finals=add?res.groups.S.finals:null, n=finals?finals.length:tiles.length;
+  const base=G==='P'?0:640, rows=Math.ceil(n/16), img=new ImageData(128,rows*8);
+  const home=info.groups.S.tileHome, homeP=info.groups.P.tileHome;
+  for(let k=0;k<n;k++){
+    const f=finals?finals[k]:null, t=f&&!f.existing?f.data:tiles[k];
+    const pal = f&&!f.existing ? res.groups[f.bin.g].pals[f.bin.b] : (()=>{ const slot=home.get(base+k)??homeP.get(base+k); return slot!=null?exPal(slot):null; })();
+    const ox=(k%16)*8, oy=Math.floor(k/16)*8;
+    for(let p=0;p<64;p++){ const v=t[p]; if(!v) continue; const o=((oy+(p>>3))*128+ox+(p&7))*4;
+      if(pal){ const [r,g,b]=gbaToRgb(pal[v]); img.data[o]=r; img.data[o+1]=g; img.data[o+2]=b; } else { const y=40+v*13; img.data[o]=img.data[o+1]=img.data[o+2]=y; }
+      img.data[o+3]=255; }
+  }
+  cv.width=128*z; cv.height=rows*8*z; const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  const off=document.createElement('canvas'); off.width=128; off.height=rows*8; off.getContext('2d').putImageData(img,0,0);
+  ctx.drawImage(off,0,0,cv.width,cv.height);
+  if(G==='S' && info.groups.S.unusedTiles){ ctx.strokeStyle='rgba(240,180,41,.85)'; for(const k of info.groups.S.unusedTiles) if(!(finals&&finals[k]&&finals[k].recycled)) ctx.strokeRect((k%16)*24+1.5,Math.floor(k/16)*24+1.5,21,21); }
+  if(finals){ ctx.strokeStyle='#6ea8fe'; finals.forEach((f,k)=>{ if(f&&!f.existing) ctx.strokeRect((k%16)*24+1.5,Math.floor(k/16)*24+1.5,21,21); }); }
+  ctx.fillStyle='rgba(255,255,255,.07)'; for(let x=1;x<16;x++) ctx.fillRect(x*24,0,1,cv.height); for(let y=1;y<rows;y++) ctx.fillRect(0,y*24,cv.width,1);
+  const nNew=finals?finals.filter(f=>f&&!f.existing).length:0;
+  $('#tsInfo').textContent=`${tiles.length} tile esistenti`+(finals?` + ${nNew} nuovi`:'')+` · ${GROUPS[G].maxTiles-n} posti liberi`;
+  $('#tsNote').textContent='Tile colorati con la palette del primo blocco che li usa (grigi se nessun blocco caricato li usa).'+(G==='S'?' Giallo: tile che nessun blocco usa.':'')+(finals?' Blu: tile nuovi.':'');
+  return true;
+}
+function slotAt(e){ const cv=$('#tsCanvas'), r=cv.getBoundingClientRect(); const c=Math.floor((e.clientX-r.left)/48), w=Math.floor((e.clientY-r.top)/48); return c<0||c>7||w<0?-1:w*8+c; }
+// anteprima di dove andrebbe l'oggetto selezionato
+function drawPlaceGhost(e){
+  const cv=$('#tsCanvas'), res=state.result; if(!cv._base||!res||!res.add||state.tsKind!=='blocks'||state.tsTab!=='S'||state.placeMode!=='rect'||state.pickExBg) return;
+  const ctx=cv.getContext('2d'); ctx.drawImage(cv._base,0,0);
+  const im=placeTargetObj(), a=slotAt(e); if(!im||a<0) return;
+  const gi=state.exInfo.groups.S, pl=res.blocks.place, B=48;
+  im.blocks.forEach((b,i)=>{ if(!b) return;
+    const col=(a%8)+(i%im.bw), s=a+Math.floor(i/im.bw)*8+(i%im.bw); if(col>7||s>=MAX_BLOCKS.S) return;
+    const t=pl.taken.get(s), over=s<gi.blocks.length&&!gi.blocks[s].empty, mine=t&&t.im.id===im.id;
+    ctx.fillStyle = (t&&!mine) ? 'rgba(255,170,0,.45)' : over ? 'rgba(242,85,90,.45)' : 'rgba(76,195,138,.45)';
+    ctx.fillRect((s%8)*B,Math.floor(s/8)*B,B,B);
+  });
+}
+function tileNum(ref){ return GROUPS[ref.g].tileBase+ref.n; }
+const hex3=n=>'0x'+n.toString(16).toUpperCase().padStart(3,'0');
+function flipTxt(f){ return f===0?'':f===1?' · flip H':f===2?' · flip V':' · flip H+V'; }
+function renderTileset(){
+  document.querySelectorAll('#tsSeg button').forEach(b=>b.classList.toggle('on',b.dataset.g===state.tsTab));
+  document.querySelectorAll('#tsKind button').forEach(b=>b.classList.toggle('on',b.dataset.k===state.tsKind));
+  const cv=$('#tsCanvas'), res=state.result, G=state.tsTab;
+  renderPlaceBar(false); cv._base=null;
+  if(state.mode==='add' && renderExistingSheet(cv,G)) return;
+  if(state.tsKind==='blocks'){
+    $('#tsNote').textContent='Blocchi come li vedrai in HMA: 8 per riga, sotto + sopra. Passa il mouse per numero e tipo di layer.';
+    const bl=res?res.blocks[G]:[];
+    if(!bl.length){ cv.width=cv.height=0; $('#tsInfo').textContent='nessun blocco'; return; }
+    const rows=Math.ceil(bl.length/8), z=3, img=new ImageData(128,rows*16);
+    bl.forEach((b,i)=>drawBlock(res,img.data,128,(i%8)*16,Math.floor(i/8)*16,b));
+    cv.width=128*z; cv.height=rows*16*z; const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+    const off=document.createElement('canvas'); off.width=128; off.height=rows*16; off.getContext('2d').putImageData(img,0,0);
+    ctx.drawImage(off,0,0,cv.width,cv.height);
+    ctx.fillStyle='rgba(255,255,255,.12)'; for(let x=1;x<8;x++) ctx.fillRect(x*16*z,0,1,cv.height); for(let y=1;y<rows;y++) ctx.fillRect(0,y*16*z,cv.width,1);
+    $('#tsInfo').textContent=`${bl.length} blocchi · ${(bl.length/MAX_BLOCKS[G]*100).toFixed(0)}% dello spazio`;
+    return;
+  }
+  $('#tsNote').textContent='Ogni tile è mostrato con la prima palette che lo usa. Tile identici o specchiati vengono salvati una volta sola.';
+  if(!res||!res.groups[G].finals.length){ cv.width=cv.height=0; $('#tsInfo').textContent='nessun tile'; return; }
+  const g=res.groups[G], n=g.finals.length, rows=Math.ceil(n/16), z=3;
+  const img=new ImageData(128,rows*8);
+  g.finals.forEach((ft,i)=>{ const pal=res.groups[ft.bin.g].pals[ft.bin.b]; const ox=(i%16)*8, oy=Math.floor(i/16)*8; for(let p=0;p<64;p++){ const idx=ft.data[p]; if(!idx) continue; const [r,gg,b]=gbaToRgb(pal[idx]); const o=((oy+(p>>3))*128+ox+(p&7))*4; img.data[o]=r; img.data[o+1]=gg; img.data[o+2]=b; img.data[o+3]=255; } });
+  cv.width=128*z; cv.height=rows*8*z; const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  const off=document.createElement('canvas'); off.width=128; off.height=rows*8; off.getContext('2d').putImageData(img,0,0);
+  ctx.drawImage(off,0,0,cv.width,cv.height);
+  ctx.fillStyle='rgba(255,255,255,.07)'; for(let x=1;x<16;x++) ctx.fillRect(x*8*z,0,1,cv.height); for(let y=1;y<rows;y++) ctx.fillRect(0,y*8*z,cv.width,1);
+  $('#tsInfo').textContent=`${n} tile · ${(n/GROUPS[G].maxTiles*100).toFixed(0)}% dello spazio`;
+}
+function previewPair(beforeData, afterData, label){
+  const s=Math.max(1,Math.min(4,Math.floor(160/Math.max(beforeData.width,beforeData.height))||1));
+  const a=idCanvas(beforeData,s), b=idCanvas(afterData,s); a.style.height=b.style.height='auto';
+  return el('figure',{}, el('div',{class:'pp'}, a, b), el('figcaption',{}, label+' · prima / dopo'));
+}
+function renderSuggestions(){
+  const box=$('#suggs'); box.innerHTML='';
+  if(state.suggBusy) box.append(el('div',{class:'busy'}, el('div',{class:'spin'}), 'Sto cercando possibili ottimizzazioni…'));
+  const list=state.suggestions.filter(s=>!state.ignored.has(sigOf(s)));
+  $('#suggCount').textContent=list.length?list.length:'';
+  const res=state.result;
+  if(state.mode==='add' && !addActive()) box.append(el('div',{class:'notice info'}, 'Modalità "Aggiungi": carica a sinistra tileset, palette 07–0C e blocchi del secondario per vedere come entra la nuova grafica.'));
+  if(res && !res.add){
+    for(const G of ['P','S']){ const st=groupStats(res,G), cfg=GROUPS[G];
+      if(st.pals>cfg.maxPals) box.append(el('div',{class:'notice'}, `${cfg.name}: servono ${st.pals} palette ma ne hai ${cfg.maxPals}. Applica i consigli qui sotto oppure sposta/riduci qualche immagine.`));
+      if(st.tiles>cfg.maxTiles) box.append(el('div',{class:'notice'}, `${cfg.name}: ${st.tiles} tile su ${cfg.maxTiles} disponibili.`)); }
+  }
+  if(!state.suggBusy && !list.length && res) box.append(el('div',{class:'muted small'}, state.suggestions.length?'Hai ignorato tutti i consigli.':res.add?'Tutto a posto: la nuova grafica entra nel secondario esistente.':'Nessun consiglio: con queste immagini non trovo modi per risparmiare palette senza rovinare troppo i colori.'));
+  for(const s of list){
+    const ignore=el('button',{class:'ghost small',onclick:()=>{ state.ignored.add(sigOf(s)); renderSuggestions(); }},'Ignora');
+    if(s.kind==='blockConflict'){
+      const name=imgName(s.imageId);
+      const why=[s.top?`${s.top} sono segnati "sopra il giocatore"`:'', s.bg?`${s.bg} hanno parti trasparenti da riempire con lo sfondo`:''].filter(Boolean).join(' e ');
+      box.append(el('div',{class:'sugg need'},
+        el('h3',{}, `${name}: ${s.n} blocchi servirebbero 3 layer`),
+        el('p',{html:`Questi blocchi contengono tile divisi in 2 layer (più di 15 colori), che occupano già sotto e sopra. Di questi, ${esc(why)}. Un blocco ha solo 2 layer, quindi per ora li ho tenuti <b>sotto il giocatore, senza sfondo</b>.`}),
+        el('div',{class:'opts'},
+          el('div',{class:'opt'}, el('div',{class:'oh'}, el('b',{},'Riduci i colori di quei tile'), el('button',{class:'small',onclick:()=>{ state.decisions=state.decisions.filter(d=>!(d.kind==='overflow'&&d.imageId===s.imageId)); applyDecision({kind:'overflow',imageId:s.imageId,mode:'reduce',label:`${name}: tile >15 colori ridotti (per avere sfondo / sopra il giocatore)`}); }},'Scegli')),
+            el('div',{class:'stats'},'Il tile torna su un solo layer: libera il secondo per lo sfondo o per stare sopra il giocatore. Perdi un po\' di colori.')),
+          el('div',{class:'opt'}, el('div',{class:'oh'}, el('b',{},'Va bene così'), el('button',{class:'small',onclick:()=>{ state.ignored.add(sigOf(s)); renderSuggestions(); }},'Scegli')),
+            el('div',{class:'stats'},'Tieni la qualità piena: quei blocchi restano sotto il giocatore e senza sfondo (le parti trasparenti mostrano il colore di fondo).'))),
+        el('div',{class:'acts'}, el('button',{class:'small',onclick:()=>{ state.selected=s.imageId; state.view='blocks'; renderAll(); }},'Mostra nei blocchi'))));
+      continue;
+    }
+    if(s.kind==='recycle'){
+      box.append(el('div',{class:'sugg need'},
+        el('h3',{}, `Tile finiti: ne mancano ${s.need}`),
+        el('p',{html:`Il secondario esistente non ha più posto per i tile nuovi. Ci sono però <b>${s.unused}</b> tile che nessun blocco del secondario usa: posso mettere lì i tile nuovi.`+(s.unused<s.need?` <b>Non bastano del tutto</b>: ne mancherebbero ancora ${s.need-s.unused} (riduci la grafica o libera tile in HMA).`:'')}),
+        el('p',{html:`<b>Attenzione:</b> controlla prima che non servano alle <b>animazioni del tileset</b> (acqua, fiori…), che copiano i fotogrammi in alcuni tile, o a un altro tileset che condivide gli stessi dati. Nel pannello "Generato → Tile" sono quelli con il bordo giallo.`}),
+        el('div',{class:'acts'}, el('button',{class:'primary small',onclick:()=>applyDecision({kind:'recycle',label:`Tile nuovi al posto dei ${s.unused} tile non usati`})},'Ricicla i tile non usati'), el('button',{class:'small',onclick:()=>{ state.tsKind='tiles'; state.tsTab='S'; renderTileset(); }},'Mostrameli'), ignore)));
+      continue;
+    }
+    if(s.kind==='placeOver'){
+      const name=imgName(s.imageId), img=state.images.find(i=>i.id===s.imageId);
+      box.append(el('div',{class:'sugg need'},
+        el('h3',{}, `${name}: ${s.slots.length} blocchi finirebbero sopra blocchi esistenti`),
+        el('p',{html:`Nella posizione che hai scelto, i blocchi ${s.slots.slice(0,6).map(n=>hex3(0x280+n)).join(', ')}${s.slots.length>6?'…':''} hanno già qualcosa. Se li sovrascrivi, nelle mappe che li usano compariranno i blocchi nuovi.`}),
+        el('div',{class:'acts'},
+          el('button',{class:'small',onclick:()=>{ if(img&&img.place){ img.place.overwrite=true; recompute(); } }},'Sovrascrivi quei blocchi'),
+          el('button',{class:'small',onclick:()=>{ if(img){ delete img.place; recompute(); } }},'Trova un posto libero'),
+          el('button',{class:'ghost small',onclick:()=>{ state.placeObj=s.imageId; state.tsKind='blocks'; state.tsTab='S'; renderTileset(); }},'Mostra'))));
+      continue;
+    }
+    if(s.kind==='placeBad'){
+      const name=imgName(s.imageId), img=state.images.find(i=>i.id===s.imageId);
+      box.append(el('div',{class:'sugg need'},
+        el('h3',{}, `${name}: ${s.n} blocchi non si possono mettere lì`),
+        el('p',{html: s.other ? `Si sovrappone a <b>${esc(s.other.img.name)}</b>. Sposta uno dei due oggetti.` : 'Esce dal blockset (dopo il blocco 0x3FF). Spostalo più in alto.'}),
+        el('div',{class:'acts'}, el('button',{class:'small',onclick:()=>{ if(img){ delete img.place; recompute(); } }},'Posto automatico'))));
+      continue;
+    }
+    if(s.kind==='noSpace'){
+      const name=imgName(s.imageId);
+      box.append(el('div',{class:'sugg need'},
+        el('h3',{}, `${name}: non trova posto (${s.n} blocchi)`),
+        el('p',{html: state.placeMode==='rect' ? `Nel blockset non c'è un rettangolo libero di <b>${s.w}×${s.h}</b> blocchi. Puoi riempire i posti liberi sparsi (perde la forma nella tavolozza) oppure scegliere tu dove metterlo, sovrascrivendo blocchi esistenti.` : `Non ci sono abbastanza blocchi liberi nel secondario. Libera qualche blocco in HMA, oppure scegli dove sovrascrivere in modalità rettangolo.`}),
+        el('div',{class:'acts'},
+          state.placeMode==='rect' ? el('button',{class:'small',onclick:()=>{ state.placeMode='fill'; recompute(); }},'Riempi i posti liberi') : el('button',{class:'small',onclick:()=>{ state.placeMode='rect'; recompute(); }},'Torna al rettangolo'),
+          el('button',{class:'ghost small',onclick:()=>{ state.placeObj=s.imageId; state.tsKind='blocks'; state.tsTab='S'; renderTileset(); toast('Clicca nel blockset la casella di partenza dell\'oggetto.'); }},'Scelgo io dove'))));
+      continue;
+    }
+    if(s.kind==='overflow'){
+      const name=imgName(s.imageId), im=res.byId.get(s.imageId);
+      const w=s.worst, orig=pxToImageData(w.orig,8,8), red=pxToImageData(reduceTile(w.orig).px,8,8);
+      box.append(el('div',{class:'sugg need'},
+        el('h3',{}, `${name}: ${s.n} tile 8×8 superano i 15 colori`),
+        el('p',{html:`Un tile può usare una sola palette, quindi al massimo 15 colori. Qui ne arrivano fino a <b>${s.maxCols}</b>. Scegli come gestirli (nell'anteprima sono già ridotti in modo provvisorio).`}),
+        el('div',{class:'prev'}, el('figure',{}, el('div',{class:'pp'}, idCanvas(orig,8), idCanvas(red,8)), el('figcaption',{},'tile peggiore · originale / ridotto'))),
+        el('div',{class:'opts'},
+          el('div',{class:'opt'}, el('div',{class:'oh'}, el('b',{},'Riduci i colori'), el('button',{class:'small',onclick:()=>applyDecision({kind:'overflow',imageId:s.imageId,mode:'reduce',label:`${name}: tile >15 colori ridotti`})},'Scegli')),
+            el('div',{class:'stats',html:`Unisce i colori più simili dentro il tile. ${costBadge(s.reduce.err)}<br>${GROUPS[s.group].name}: ${s.reduce.tiles} tile · ${s.reduce.pals} palette`})),
+          el('div',{class:'opt'}, el('div',{class:'oh'}, el('b',{},'Dividi in 2 layer'), el('button',{class:'small',onclick:()=>applyDecision({kind:'overflow',imageId:s.imageId,mode:'split',label:`${name}: tile >15 colori divisi in 2 layer`})},'Scegli')),
+            el('div',{class:'stats',html:`Metà dei colori va sul layer sotto, metà su quello sopra, ognuno con la sua palette. ${s.split.err>0?costBadge(s.split.err):'<span class="cost c0">qualità intatta</span>'}<br>${GROUPS[s.group].name}: ${s.split.tiles} tile (<b>${s.split.tiles-s.reduce.tiles>=0?'+':''}${s.split.tiles-s.reduce.tiles}</b>) · ${s.split.pals} palette (<b>${s.split.pals-s.reduce.pals>=0?'+':''}${s.split.pals-s.reduce.pals}</b>)<br>Quei blocchi useranno entrambi i layer sotto il giocatore.`}))),
+        el('div',{class:'acts'}, el('button',{class:'small',onclick:()=>{ state.selected=s.imageId; state.view='map'; renderAll(); }},'Mostra nella mappa'), ignore)));
+    } else {
+      const G=s.group, cfg=GROUPS[G];
+      const pairsMap=new Map(); for(const x of s.subs){ const k=x.from+'>'+x.to; if(!pairsMap.has(k)) pairsMap.set(k,x); }
+      const pairs=[...pairsMap.values()].sort((a,b)=>dE(b.from,b.to)-dE(a.from,a.to));
+      const pairEls=pairs.slice(0,14).map(x=>el('span',{class:'pair',title:`ΔE ${dE(x.from,x.to).toFixed(1)}`}, el('span',{class:'sw',style:'background:'+gbaHex(x.from)}),'→',el('span',{class:'sw',style:'background:'+gbaHex(x.to)})));
+      if(pairs.length>14) pairEls.push(el('span',{class:'pair'},`+${pairs.length-14}`));
+      const names=s.st.imgs.map(imgName);
+      const prevs=s.st.imgs.slice(0,3).map(id=>{ const a=res.byId.get(id), b=s.res2.byId.get(id); return a&&b?previewPair(renderResult(res,a),renderResult(s.res2,b),imgName(id)):null; });
+      let title, text, cls;
+      if(s.kind==='fit'){
+        cls='save'; title='Fai entrare la grafica nelle palette esistenti';
+        text=`<b>${esc(names.join(', '))}</b> ha colori che non trovano posto nelle palette 7–12. Adattando <b>${pairs.length}</b> ${pairs.length===1?'colore':'colori'} a quelli più vicini già presenti, `+(s.after.pals?`le palette in più scendono da ${s.before.pals} a <b>${s.after.pals}</b>.`:'<b>entra tutto</b>.');
+      } else if(s.kind==='nearEx'){
+        cls=''; title='Colori quasi uguali a quelli già nelle palette';
+        text=`<b>${pairs.length}</b> colori nuovi sono praticamente uguali a colori già presenti nelle palette esistenti. Usando quelli risparmi <b>${s.before.colors-s.after.colors}</b> posti liberi`+(s.after.pals<s.before.pals?` e una parte della grafica rientra nelle palette.`:'.');
+      } else if(s.kind==='save'){
+        cls='save'; title=`Risparmia 1 palette nel ${cfg.name.toLowerCase()}`;
+        text=`Se adatti <b>${pairs.length}</b> ${pairs.length===1?'colore':'colori'} di <b>${esc(names.join(', '))}</b> a colori già presenti nelle altre palette, la palette ${slotLabel(G,s.k)} si svuota: da ${s.before.pals} a <b>${s.after.pals}</b> palette.`;
+      } else {
+        cls=''; title=`Colori quasi identici nel ${cfg.name.toLowerCase()}`;
+        text=`Ci sono <b>${pairs.length}</b> colori praticamente uguali ad altri (differenza a occhio nullo). Unendoli liberi <b>${s.before.colors-s.after.colors}</b> posti colore`+(s.after.pals<s.before.pals?` e <b>una palette intera</b>.`:'.');
+      }
+      box.append(el('div',{class:'sugg '+cls},
+        el('h3',{}, title), el('p',{html:text}),
+        el('div',{class:'pairs'}, pairEls),
+        el('p',{html:`${costBadge(s.st.maxD)} &nbsp;<span class="small muted">${s.st.px} pixel cambiati (${s.st.pct.toFixed(1)}%)</span>`}),
+        el('div',{class:'prev'}, prevs),
+        el('div',{class:'acts'}, el('button',{class:'primary small',onclick:()=>applyDecision({kind:'sub',subs:s.subs,label:
+          s.kind==='save'?`−1 palette (${cfg.name}): adattati ${pairs.length} ${pairs.length===1?'colore':'colori'} di ${names.join(', ')}`:
+          s.kind==='fit'?`Palette esistenti: adattati ${pairs.length} colori di ${names.join(', ')}`:
+          s.kind==='nearEx'?`Usati ${pairs.length} colori già presenti nelle palette`:`${cfg.name}: uniti ${pairs.length} colori quasi identici`})},'Applica'), ignore)));
+    }
+  }
+}
+
+// ============================================================ tooltip viewer / tileset
+function showTip(e,txt){ const t=$('#tip'); t.textContent=txt; t.style.display='block'; t.style.left=Math.min(innerWidth-330,e.clientX+14)+'px'; t.style.top=(e.clientY+14)+'px'; }
+function hideTip(){ $('#tip').style.display='none'; }
+$('#view').addEventListener('mousemove',e=>{
+  if(state.picking){ showTip(e,'Clicca sul colore da rendere trasparente'); return; }
+  const h=hitView(e); if(!h){ hideTip(); return; }
+  const {im,px,py}=h, who=isAll()?im.img.name+'\n':'';
+  if(state.view==='blocks'){
+    const bx=px>>4, by=py>>4; if(bx<0||by<0||bx>=im.bw||by>=im.bh){ hideTip(); return; }
+    if(painting && state.brush!=='star') paintBlock(im,bx,by);
+    const b=im.blocks[by*im.bw+bx], mode=(im.img.blockModes||{})[bx+','+by]||'bottom';
+    let txt=`${who}Blocco (${bx},${by})`;
+    if(!b) txt+='\nvuoto: non viene esportato';
+    else { txt+=(b.ref?` → ${hex3(blockNum(b.ref))}`:' → non ancora piazzato nel blockset')+`\n${mode==='top'?'▲ sopra il giocatore':'▼ sotto il giocatore'} · tipo ${b.attr===LAYER_COVERED?'coperto':'normale'}`;
+      if(b.usesBg) txt+='\nlayer sotto: sfondo';
+      const f=b.content&&b.content.from; if(b.ref&&f&&(f.imageId!==im.id||f.bx!==bx||f.by!==by)) txt+=`\nuguale a un blocco già esistente (${imgName(f.imageId)} ${f.bx},${f.by}): riusato`;
+      const pl=state.result.blocks.place; if(pl&&b.ref){ const c=pl.conflicts.find(c=>c.im.id===im.id&&c.slot===b.ref.n); if(c) txt+=`\n⚠ ${c.kind==='esistente'?'sopra un blocco esistente: va confermato':c.kind==='altro'?'sopra un altro oggetto':'fuori dal blockset'}`; }
+      if(b.conflict==='top') txt+='\n⚠ ha tile divisi in 2 layer: non può stare sopra il giocatore'; if(b.conflict==='bg') txt+='\n⚠ ha tile divisi in 2 layer: lo sfondo non ci sta'; }
+    showTip(e,txt); return;
+  }
+  const tx=px>>3, ty=py>>3; const cell=im.cells[ty*im.tw+tx]; if(!cell){ hideTip(); return; }
+  let txt=`${who}Tile 8×8 (${tx},${ty}) · blocco 16×16 (${tx>>1},${ty>>1})`;
+  if(cell.empty) txt+='\nvuoto (trasparente)';
+  else { txt+=`\n${cell.ncol} colori`; cell.parts.forEach((p,i)=>{ txt+=`\n${cell.parts.length>1?(i?'sopra: ':'sotto: '):''}tile ${hex3(tileNum(p.tile))} · pal ${slotLabel(p.bin.g,p.bin.b)}${flipTxt(p.flip)}`; });
+    if(cell.ov==='auto') txt+='\n⚠ più di 15 colori: decidi nei Consigli'; else if(cell.ov) txt+=`\n${cell.ov==='split'?'diviso in 2 layer':'colori ridotti'}`; }
+  showTip(e,txt);
+});
+$('#view').addEventListener('mouseleave',hideTip);
+// pennello dei blocchi
+let painting=false, paintedSomething=false;
+function blockAt(e){ const h=hitView(e); return h?[h.im, h.px>>4, h.py>>4]:[null,0,0]; }
+function paintBlock(im,bx,by){
+  const m=im.img.blockModes||(im.img.blockModes={}), k=bx+','+by, cur=m[k]||'bottom';
+  if(cur===state.brush) return;
+  if(state.brush==='bottom') delete m[k]; else m[k]=state.brush;
+  paintedSomething=true; renderViewer();
+}
+$('#view').addEventListener('mousedown',e=>{
+  if(state.view!=='blocks'||state.picking||e.button!==0) return;
+  const [im,bx,by]=blockAt(e); if(!im||bx>=im.bw||by>=im.bh) return;
+  e.preventDefault();
+  if(state.brush==='star'){
+    const i=state.bgCands.findIndex(c=>c.imageId===im.id&&c.bx===bx&&c.by===by);
+    if(i>=0) state.bgCands.splice(i,1); else state.bgCands.push({imageId:im.id,bx,by});
+    renderViewer(); return;
+  }
+  painting=true; paintedSomething=false; paintBlock(im,bx,by);
+});
+addEventListener('mouseup',()=>{ if(painting){ painting=false; if(paintedSomething) recompute(); } });
+document.querySelectorAll('#brushSeg button').forEach(b=>b.onclick=()=>{ state.brush=b.dataset.b; renderViewer(); });
+$('#layoutSel').onchange=e=>{ state.blockLayout=e.target.value; recompute(); };
+document.querySelectorAll('#tsKind button').forEach(b=>b.onclick=()=>{ state.tsKind=b.dataset.k; renderTileset(); });
+$('#view').addEventListener('click',e=>{
+  if(!state.picking) return; const img=state.images.find(i=>i.id===state.picking), h=hitView(e);
+  state.picking=null; hideTip();
+  if(img && h && h.im.id===img.id && h.px<img.w && h.py<img.h){ const i=(h.py*img.w+h.px)*4; img.trans={mode:'color',color:[img.rgba[i],img.rgba[i+1],img.rgba[i+2]]}; }
+  state.view='result'; recompute();
+});
+function layerName(attr){ if(attr==null) return 'tipo di layer non incluso nell\'export di HMA'; const l=(attr>>>28)&0xF; return ({0:'normale',1:'normale',2:'coperto',3:'triple',4:'split',6:'triple',8:'top-2'})[l]||('layer '+l); }
+function existingSheetTip(e){
+  const info=state.exInfo, G=state.tsTab, cv=$('#tsCanvas'), r=cv.getBoundingClientRect(); if(!info) return false;
+  const gi=info.groups[G];
+  if(state.tsKind==='blocks'){
+    if(!gi.blocks.length) return false;
+    const i=Math.floor((e.clientY-r.top)/48)*8+Math.floor((e.clientX-r.left)/48); if(i<0||i>=Math.max(gi.blocks.length,MAX_BLOCKS[G])){ hideTip(); return true; }
+    const b=gi.blocks[i], num=hex3((G==='S'?0x280:0)+i), pl=G==='S'&&state.result&&state.result.add?state.result.blocks.place:null, t=pl&&pl.taken.get(i);
+    let txt = !b ? `blocco ${num} · non ancora allocato: libero` : `blocco ${num} · ${b.empty?'vuoto (nessun pixel): libero':'esistente'}`+(b.empty?'':` · ${layerName(b.attr)}`)+(b.unknown?'\nusa tile non caricati':'');
+    if(t){ const bx=t.i%t.im.bw, by=Math.floor(t.i/t.im.bw); txt=`blocco ${num} · NUOVO: ${t.im.img.name} (${bx},${by})`+(b&&!b.empty?`\n${t.im.img.place&&t.im.img.place.overwrite?'sostituisce':'⚠ finirebbe sopra'} un blocco esistente (${layerName(b.attr)})`:''); }
+    const selObj=pl?placeTargetObj():null;
+    if(pl && !state.pickExBg) txt+= (t && (!selObj||t.im.id!==selObj.id)) ? '\nclic: seleziona questo oggetto' : (state.placeMode==='rect'?'\nclic: sposta qui l\'oggetto selezionato (angolo in alto a sinistra)':'');
+    if(state.pickExBg) txt+= b&&!b.empty ? '\nclic: usa come sfondo' : '';
+    showTip(e,txt); drawPlaceGhost(e);
+    return true;
+  }
+  const tiles=G==='P'?info.tP:info.tS; if(!tiles) return false;
+  const k=Math.floor((e.clientY-r.top)/24)*16+Math.floor((e.clientX-r.left)/24); if(k<0||k>=tiles.length){ hideTip(); return true; }
+  const n=(G==='P'?0:640)+k, uses=info.groups.S.tileUse.get(n)||0, usesP=info.groups.P.tileUse.get(n)||0;
+  showTip(e, `tile ${hex3(n)} · `+((uses+usesP)?`usato in ${uses+usesP} voci di blocco`:'nessun blocco caricato lo usa'));
+  return true;
+}
+$('#tsCanvas').addEventListener('click',e=>{
+  const res=state.result; if(!res||!res.add||state.tsKind!=='blocks'||state.tsTab!=='S') return;
+  const s=slotAt(e); if(s<0||s>=MAX_BLOCKS.S) return;
+  const gi=state.exInfo.groups.S, pl=res.blocks.place, t=pl.taken.get(s), im=placeTargetObj();
+  if(state.pickExBg){
+    const b=gi.blocks[s];
+    if(!b||b.empty){ toast('Scegli un blocco che disegna qualcosa (es. l\'erba).',true); return; }
+    if(!im) return;
+    im.img.bg={existing:true, slot:s}; state.pickExBg=false; toast(`${im.img.name}: sfondo = blocco ${hex3(0x280+s)}.`); recompute(); return;
+  }
+  if(t && (!im || t.im.id!==im.id)){ state.placeObj=t.im.id; renderTileset(); return; }
+  if(state.placeMode!=='rect' || !im) return;
+  if(s%8+im.bw>8){ toast(`${im.img.name} è largo ${im.bw} blocchi: da questa colonna uscirebbe dalla riga (8 blocchi).`,true); return; }
+  im.img.place={slot:s, overwrite:false}; recompute();
+});
+$('#tsCanvas').addEventListener('mouseleave',()=>{ const cv=$('#tsCanvas'); if(cv._base) cv.getContext('2d').drawImage(cv._base,0,0); });
+$('#placeObj').onchange=e=>{ state.placeObj=+e.target.value; renderTileset(); };
+$('#placeMode').onchange=e=>{ state.placeMode=e.target.value; recompute(); };
+$('#placeAuto').onclick=()=>{ const im=placeTargetObj(); if(!im) return; delete im.img.place; recompute(); };
+$('#placeBg').onclick=()=>{ state.pickExBg=!state.pickExBg; renderTileset(); };
+$('#tsCanvas').addEventListener('mousemove',e=>{
+  if(state.mode==='add' && existingSheetTip(e)) return;
+  const res=state.result; if(!res) return; const G=state.tsTab, cv=$('#tsCanvas'), r=cv.getBoundingClientRect();
+  if(state.tsKind==='blocks'){
+    const i=Math.floor((e.clientY-r.top)/48)*8+Math.floor((e.clientX-r.left)/48), b=res.blocks[G][i]; if(!b){ hideTip(); return; }
+    const src=b.from?`\nda ${imgName(b.from.imageId)} (${b.from.bx},${b.from.by})`:'\n(vuoto: serve solo a mantenere la forma)';
+    showTip(e,`blocco ${hex3(blockNum({g:G,n:i}))} · ${b.attr===LAYER_COVERED?'coperto (tutto sotto il giocatore)':'normale (layer sopra copre il giocatore)'}`+src); return;
+  }
+  const i=Math.floor((e.clientY-r.top)/24)*16+Math.floor((e.clientX-r.left)/24); const ft=res.groups[G].finals[i]; if(!ft){ hideTip(); return; }
+  showTip(e,`tile ${hex3(GROUPS[G].tileBase+i)} · mostrato con pal ${slotLabel(ft.bin.g,ft.bin.b)}`+(i===0&&G==='P'?'\n(tile 0 riservato vuoto)':''));
+});
+$('#tsCanvas').addEventListener('mouseleave',hideTip);
+
+// ============================================================ caricamento
+const readURL=f=>new Promise((ok,ko)=>{ const r=new FileReader(); r.onload=()=>ok(r.result); r.onerror=ko; r.readAsDataURL(f); });
+async function decodeURL(url){
+  const [head,b64]=url.split(','), bin=atob(b64), bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  const blob=new Blob([bytes],{type:(head.match(/data:([^;]+)/)||[])[1]||'image/png'});
+  let bmp; try{ bmp=await createImageBitmap(blob,{colorSpaceConversion:'none',premultiplyAlpha:'none'}); }catch(e){ bmp=await createImageBitmap(blob); }
+  const c=document.createElement('canvas'); c.width=bmp.width; c.height=bmp.height; const ctx=c.getContext('2d',{willReadFrequently:true}); ctx.drawImage(bmp,0,0);
+  return {w:bmp.width,h:bmp.height,rgba:ctx.getImageData(0,0,bmp.width,bmp.height).data};
+}
+function autoTrans(rgba){ for(let i=3;i<rgba.length;i+=4) if(rgba[i]<255) return {mode:'alpha',color:null}; return {mode:'color',color:[rgba[0],rgba[1],rgba[2]]}; }
+async function addImage(name,url,target,trans){
+  const d=await decodeURL(url);
+  const img={id:nextId++, name, url, w:d.w, h:d.h, rgba:d.rgba, target:state.mode==='add'?'S':(target||state.defTarget), trans:trans||autoTrans(d.rgba)};
+  state.images.push(img); if(state.selected==null) state.selected=img.id; return img;
+}
+async function addFiles(files){
+  let last=null;
+  for(const f of files){ if(!f.type.startsWith('image/')) continue; try{ last=await addImage(f.name, await readURL(f)); }catch(e){ toast(`Non riesco a leggere ${f.name}: non sembra un'immagine valida.`,true); } }
+  if(last) state.selected=last.id;
+  recompute();
+}
+const drop=$('#drop');
+['dragenter','dragover'].forEach(t=>document.addEventListener(t,e=>{ e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(t=>document.addEventListener(t,e=>{ e.preventDefault(); if(t==='drop'||e.target===document.documentElement) drop.classList.remove('over'); }));
+document.addEventListener('drop',e=>{ drop.classList.remove('over'); if(e.dataTransfer.files.length) addFiles([...e.dataTransfer.files]); });
+$('#btnPick').onclick=()=>$('#fileIn').click();
+$('#fileIn').onchange=e=>{ addFiles([...e.target.files]); e.target.value=''; };
+document.querySelectorAll('#defTarget button').forEach(b=>b.onclick=()=>{ state.defTarget=b.dataset.t; document.querySelectorAll('#defTarget button').forEach(x=>x.classList.toggle('on',x===b)); });
+document.querySelectorAll('#viewSeg button').forEach(b=>b.onclick=()=>{ state.view=b.dataset.v; state.picking=null; renderViewer(); });
+document.querySelectorAll('#tsSeg button').forEach(b=>b.onclick=()=>{ state.tsTab=b.dataset.g; renderTileset(); });
+$('#chkGrid').onchange=e=>{ state.grid=e.target.checked; renderViewer(); };
+$('#zIn').onclick=()=>{ state.zoom=Math.min(12,($('#view')._z||1)+1); renderViewer(); };
+$('#zOut').onclick=()=>{ const z=($('#view')._z||1)-1; state.zoom=z<1?0:z; renderViewer(); };
+$('#zLab').onclick=()=>{ state.zoom=0; renderViewer(); };
+addEventListener('resize',()=>{ if(!state.zoom) renderViewer(); });
+
+// ============================================================ tileset esistente (export di HMA)
+// HMA esporta: tileset .bin (LZ77 se il tileset è compresso, altrimenti 4bpp grezzo), 16 palette JASC "00.pal".."0F.pal",
+// blocchi .bin = N blocchi da 16 byte + N*2 byte di attributi (per FireRed solo la prima metà della tabella da 4 byte).
+const emptyEx=()=>({tiles:null, tilesName:null, tilesComp:false, tilesFile:null, pals:new Array(16).fill(null), palFiles:{}, blocksFile:null, blocksName:null});
+state.mode='new'; state.existing={P:emptyEx(), S:emptyEx()}; state.exInfo=null;
+const EX_PALS={P:[0,6], S:[7,12]};
+
+function lz77Decompress(u8){
+  if(!u8||u8.length<4||u8[0]!==0x10) return null;
+  const size=u8[1]|(u8[2]<<8)|(u8[3]<<16), out=new Uint8Array(size); let i=4, o=0;
+  while(o<size){
+    if(i>=u8.length) return null;
+    const flags=u8[i++];
+    for(let b=0;b<8&&o<size;b++){
+      if(flags&(0x80>>b)){
+        if(i+1>=u8.length) return null;
+        const b1=u8[i++], b2=u8[i++], n=(b1>>4)+3, d=(((b1&15)<<8)|b2)+1;
+        if(d>o) return null;
+        for(let k=0;k<n&&o<size;k++){ out[o]=out[o-d]; o++; }
+      } else { if(i>=u8.length) return null; out[o++]=u8[i++]; }
+    }
+  }
+  return out;
+}
+// I .pal esportati da HMA hanno rosso e blu scambiati (HMA legge il "rosso" dai bit 10-14 del colore GBA,
+// che sono il blu, e al reimport li riscambia). hmaOrder=true li rimette a posto.
+function parseJasc(text, hmaOrder){
+  const lines=text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  if(lines[0]!=='JASC-PAL' || lines.length<4) return null;
+  const cols=[];
+  for(let k=0;k<16;k++){ const p=(lines[3+k]||'0 0 0').split(/\s+/).map(v=>v|0); cols.push(hmaOrder?rgbToGba(p[2],p[1],p[0]):rgbToGba(p[0],p[1],p[2])); }
+  return cols;
+}
+function classifyBin(name,u8){
+  const low=name.toLowerCase(), hintB=/block|blocchi|blox|metatile/.test(low), hintT=!hintB&&/tile/.test(low);
+  if(!hintB && u8[0]===0x10){ const t=lz77Decompress(u8); if(t && t.length && t.length%32===0) return {role:'tiles', tiles:t, comp:true}; }
+  if(hintB && u8.length%18===0) return {role:'blocks'};
+  if(hintT && u8.length%32===0) return {role:'tiles', tiles:u8, comp:false};
+  if(u8.length%18===0) return {role:'blocks'};
+  if(u8.length%32===0) return {role:'tiles', tiles:u8, comp:false};
+  return null;
+}
+const toB64=u8=>{ let s=''; for(let i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000)); return btoa(s); };
+const fromB64=s=>{ const b=atob(s), u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; };
+
+function addExistingFiles(G, files, quiet){
+  const e=state.existing[G], bad=[]; let n=0;
+  for(const f of files){
+    const low=f.name.toLowerCase();
+    if(low.endsWith('.pal')){
+      const m=f.name.match(/([0-9a-f]{1,2})\.pal$/i), cols=parseJasc(new TextDecoder().decode(f.data), true);
+      if(!m||!cols){ bad.push(f.name); continue; }
+      const idx=parseInt(m[1],16); if(idx>15){ bad.push(f.name); continue; }
+      e.pals[idx]=cols; e.palFiles[idx]=f.data; n++;
+    } else if(low.endsWith('.bin')){
+      const c=classifyBin(f.name,f.data);
+      if(!c){ bad.push(f.name); continue; }
+      if(c.role==='tiles'){ e.tiles=c.tiles; e.tilesComp=c.comp; e.tilesName=f.name; e.tilesFile=f.data; }
+      else { e.blocksFile=f.data; e.blocksName=f.name; }
+      n++;
+    }
+  }
+  if(bad.length && !quiet) toast(`Non riconosco ${bad.join(', ')}: servono i .bin e le .pal esportati da HMA.`,true);
+  else if(n && !quiet) toast(`${GROUPS[G].name}: caricati ${n} file.`);
+  exChanged();
+}
+function clearExisting(G, what){
+  const e=state.existing[G];
+  if(what==='tiles'){ e.tiles=null; e.tilesName=null; e.tilesFile=null; e.tilesComp=false; }
+  if(what==='pals'){ e.pals=new Array(16).fill(null); e.palFiles={}; }
+  if(what==='blocks'){ e.blocksFile=null; e.blocksName=null; }
+  exChanged();
+}
+function exChanged(){ state.exInfo=analyzeExisting(); if(state.images.length) recompute(); else renderAll(); }
+
+function unpackTile(src,k){ const t=new Uint8Array(64); for(let i=0;i<32;i++){ const v=src[k*32+i]; t[i*2]=v&15; t[i*2+1]=v>>4; } return t; }
+function exPal(slot){ return slot<7 ? state.existing.P.pals[slot] : state.existing.S.pals[slot]; }
+// analizza i dati caricati: tile, blocchi vuoti, colori davvero usati in ogni palette, tile non usati
+function analyzeExisting(){
+  const ex=state.existing;
+  const unpackAll=src=>{ if(!src) return null; const n=Math.floor(src.length/32), a=new Array(n); for(let k=0;k<n;k++) a[k]=unpackTile(src,k); return a; };
+  const tP=unpackAll(ex.P.tiles), tS=unpackAll(ex.S.tiles);
+  const tile=n=> n<640 ? (tP&&tP[n]||null) : (tS&&tS[n-640]||null);
+  const info={tile, tP, tS, groups:{}};
+  for(const G of ['P','S']){
+    const e=ex[G], gi={nTiles:(G==='P'?tP:tS)?.length||0, blocks:[], usedIdx:new Map(), tileUse:new Map(), tileHome:new Map(), missingTiles:0, missingPals:new Set()};
+    if(e.blocksFile){
+      const d=e.blocksFile, N=Math.floor(d.length/18), dv=new DataView(d.buffer,d.byteOffset,d.byteLength), nAttr=Math.floor(N/2);
+      for(let i=0;i<N;i++){
+        const words=[]; for(let j=0;j<8;j++) words.push(dv.getUint16(i*16+j*2,true));
+        let empty=true, unknown=false;
+        for(const w of words){
+          const tn=w&0x3FF, slot=w>>12, t=tile(tn);
+          if(!t){ if(tn!==0){ unknown=true; gi.missingTiles++; } continue; }
+          gi.tileUse.set(tn,(gi.tileUse.get(tn)||0)+1);   // usato anche se è tutto trasparente: riciclarlo cambierebbe il blocco
+          let any=false; for(let p=0;p<64;p++) if(t[p]){ any=true; break; }
+          if(!any) continue;
+          empty=false;
+          if(!exPal(slot)) gi.missingPals.add(slot);
+          let s=gi.usedIdx.get(slot); if(!s){ s=new Set(); gi.usedIdx.set(slot,s); }
+          for(let p=0;p<64;p++) if(t[p]) s.add(t[p]);
+          if(!gi.tileHome.has(tn)) gi.tileHome.set(tn,slot);
+        }
+        gi.blocks.push({words, empty:empty&&!unknown, unknown, attr: i<nAttr ? dv.getUint32(N*16+i*4,true) : null});
+      }
+    }
+    info.groups[G]=gi;
+  }
+  const gS=info.groups.S; gS.unusedTiles=[];
+  if(tS && ex.S.blocksFile) for(let k=0;k<tS.length;k++) if(!gS.tileUse.has(640+k)) gS.unusedTiles.push(k);
+  return info;
+}
+function exGroupState(G){
+  const e=state.existing[G], [a,b]=EX_PALS[G], have=[], miss=[];
+  for(let s=a;s<=b;s++) (e.pals[s]?have:miss).push(s);
+  const gi=state.exInfo?.groups[G];
+  const needBlocks=G==='S';
+  const complete=!!e.tiles && !miss.length && (!needBlocks || !!e.blocksFile);
+  return {e, gi, have, miss, complete, any: !!e.tiles || have.length>0 || !!e.blocksFile};
+}
+// disegna un blocco esistente (8 voci) nei dati RGBA; tile o palette mancanti = scacchi magenta
+function drawExWord(d, W, tx, ty, w){
+  const info=state.exInfo; if(!info) return;
+  const t=info.tile(w&0x3FF), pal=exPal(w>>12), hf=(w>>10)&1, vf=(w>>11)&1;
+  if(!t && (w&0x3FF)===0) return;
+  for(let y=0;y<8;y++) for(let x=0;x<8;x++){
+    const o=((ty+y)*W+tx+x)*4;
+    if(!t || !pal){ if(t && !t[(vf?7-y:y)*8+(hf?7-x:x)]) continue; const c=((x>>1)+(y>>1))&1; d[o]=c?255:120; d[o+1]=0; d[o+2]=c?255:120; d[o+3]=255; continue; }
+    const idx=t[(vf?7-y:y)*8+(hf?7-x:x)]; if(!idx) continue;
+    const [r,g,b]=gbaToRgb(pal[idx]); d[o]=r; d[o+1]=g; d[o+2]=b; d[o+3]=255;
+  }
+}
+function drawExBlock(d, W, ox, oy, words){
+  for(let i=0;i<8;i++) drawExWord(d,W,ox+((i&1)<<3),oy+((i&2)<<2),words[i]);
+}
+function renderExisting(){
+  $('#exPanel').hidden = state.mode!=='add';
+  $('#defTarget').parentElement.hidden = state.mode==='add';
+  if(state.mode!=='add') return;
+  const box=$('#exGroups'); box.innerHTML='';
+  let done=0;
+  for(const G of ['S','P']){
+    const st=exGroupState(G), e=st.e, gi=st.gi;
+    if(st.complete) done++;
+    const fileIn=el('input',{type:'file',multiple:true,accept:'.bin,.pal',hidden:true,onchange:async ev=>{ const fs=[...ev.target.files]; ev.target.value=''; addExistingFiles(G, await Promise.all(fs.map(async f=>({name:f.name,data:new Uint8Array(await f.arrayBuffer())})))); }});
+    const dirIn=el('input',{type:'file',webkitdirectory:true,hidden:true,onchange:async ev=>{ const fs=[...ev.target.files].filter(f=>/\.(bin|pal)$/i.test(f.name)); ev.target.value=''; addExistingFiles(G, await Promise.all(fs.map(async f=>({name:f.name,data:new Uint8Array(await f.arrayBuffer())})))); }});
+    const drop=el('div',{class:'exdrop'}, `Trascina qui i file del ${GROUPS[G].name.toLowerCase()} (anche la cartella delle palette) `,
+      el('button',{class:'small',onclick:()=>fileIn.click()},'file'),' ',el('button',{class:'small',onclick:()=>dirIn.click()},'cartella'), fileIn, dirIn);
+    drop.addEventListener('dragover',ev=>{ ev.preventDefault(); ev.stopPropagation(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
+    drop.addEventListener('drop',ev=>{ ev.preventDefault(); ev.stopPropagation(); drop.classList.remove('over'); $('#drop').classList.remove('over'); readDropped(ev.dataTransfer).then(fs=>addExistingFiles(G,fs.filter(f=>/\.(bin|pal)$/i.test(f.name)))); });
+    const x=what=>el('button',{class:'ghost small',title:'Togli',onclick:()=>clearExisting(G,what)},'✕');
+    const palTxt=st.have.length ? `${st.have.map(s=>s.toString(16).toUpperCase().padStart(2,'0')).join(' ')}`+(st.miss.length?` · mancano ${st.miss.map(s=>s.toString(16).toUpperCase().padStart(2,'0')).join(' ')}`:' ✓') : `servono ${EX_PALS[G].map(s=>s.toString(16).toUpperCase().padStart(2,'0')).join('–')}`;
+    const nEmpty=gi?gi.blocks.filter(b=>b.empty).length:0;
+    const rows=[
+      el('div',{class:'exrow'}, el('span',{class:'k'},'Tileset'), el('span',{class:'v '+(e.tiles?'ok':'miss'),title:e.tilesName||''}, e.tiles?`${e.tiles.length/32} tile${e.tilesComp?' · compresso':''} · ${e.tilesName}`:'manca il .bin del tileset'), e.tiles?x('tiles'):el('span')),
+      el('div',{class:'exrow'}, el('span',{class:'k'},'Palette'), el('span',{class:'v '+(st.miss.length?'miss':'ok')}, palTxt), st.have.length?x('pals'):el('span')),
+      el('div',{class:'exrow'}, el('span',{class:'k'},'Blocchi'), el('span',{class:'v '+(e.blocksFile?'ok':(G==='S'?'miss':'')),title:e.blocksName||''}, e.blocksFile?`${gi.blocks.length} blocchi · ${nEmpty} vuoti · ${e.blocksName}`:(G==='S'?'manca il .bin dei blocchi':'facoltativo')), e.blocksFile?x('blocks'):el('span')),
+    ];
+    const warns=[];
+    if(gi && gi.missingTiles && G==='S' && !state.existing.P.tiles) warns.push('I blocchi usano anche tile del primario: carica il tileset del primario, altrimenti quei pezzi appaiono a scacchi viola.');
+    if(gi && gi.missingPals.size) warns.push(`Mancano le palette ${[...gi.missingPals].sort((a,b)=>a-b).join(', ')} usate dai blocchi (scacchi viola).`);
+    if(G==='S' && gi && gi.unusedTiles && gi.unusedTiles.length) warns.push(`${gi.unusedTiles.length} tile del secondario non sono usati da nessun blocco.`);
+    box.append(el('div',{class:'exgroup'},
+      el('div',{class:'exhead'}, el('b',{},GROUPS[G].name), st.complete?el('span',{class:'chip ok'},'completo'):st.any?el('span',{class:'chip warn'},'incompleto'):el('span',{class:'chip'},G==='S'?'da caricare':'consigliato')),
+      drop, ...rows, ...warns.map(w=>el('div',{class:'exwarn'},w))));
+  }
+  $('#exCount').textContent=`${done}/2`;
+}
+function readDropped(dt){
+  const entries=[...(dt.items||[])].map(it=>it.webkitGetAsEntry?it.webkitGetAsEntry():null).filter(Boolean), files=[...dt.files];
+  return (async()=>{
+    const out=[];
+    const walk=async en=>{
+      if(en.isFile){ const f=await new Promise((ok,ko)=>en.file(ok,ko)); out.push({name:f.name,data:new Uint8Array(await f.arrayBuffer())}); }
+      else if(en.isDirectory){ const rd=en.createReader(); let batch; do{ batch=await new Promise((ok,ko)=>rd.readEntries(ok,ko)); for(const c of batch) await walk(c); }while(batch.length); }
+    };
+    if(entries.length) for(const en of entries) await walk(en);
+    else for(const f of files) out.push({name:f.name,data:new Uint8Array(await f.arrayBuffer())});
+    return out;
+  })();
+}
+document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>{
+  state.mode=b.dataset.m; document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('on',x===b));
+  if(state.mode==='add'){ state.defTarget='S'; document.querySelectorAll('#defTarget button').forEach(x=>x.classList.toggle('on',x.dataset.t==='S')); for(const i of state.images) i.target='S'; }
+  recompute();
+});
+
+// ============================================================ progetto
+function existingForSave(){
+  const out={};
+  for(const G of ['P','S']){ const e=state.existing[G], files=[];
+    if(e.tilesFile) files.push({name:e.tilesName, b64:toB64(e.tilesFile)});
+    if(e.blocksFile) files.push({name:e.blocksName, b64:toB64(e.blocksFile)});
+    for(const [i,u] of Object.entries(e.palFiles)) files.push({name:Number(i).toString(16).toUpperCase().padStart(2,'0')+'.pal', b64:toB64(u)});
+    out[G]=files; }
+  return out;
+}
+$('#btnSave').onclick=()=>{
+  if(!state.images.length && !Object.values(existingForSave()).some(f=>f.length)) return;
+  const proj={app:'TilesetStudio',version:3, mode:state.mode, existing:existingForSave(), images:state.images.map(i=>({id:i.id,name:i.name,url:i.url,target:i.target,trans:i.trans,blockModes:i.blockModes||{},bg:i.bg||null,place:i.place||null})), decisions:state.decisions, ignored:[...state.ignored], bgCands:state.bgCands, blockLayout:state.blockLayout, placeMode:state.placeMode};
+  download(new Blob([JSON.stringify(proj)],{type:'application/json'}),'tileset_progetto.json');
+};
+$('#btnOpen').onclick=()=>$('#fileProj').click();
+$('#fileProj').onchange=async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{
+    const proj=JSON.parse(await f.text()); if(proj.app!=='TilesetStudio') throw 0;
+    state.images=[]; state.decisions=[]; state.selected=null;
+    const idMap=new Map();
+    state.mode=proj.mode||'new';
+    for(const i of proj.images){ const img=await addImage(i.name,i.url,i.target,i.trans); img.blockModes=i.blockModes||{}; img._bg=i.bg; if(i.place) img.place=i.place; idMap.set(i.id,img.id); }
+    for(const img of state.images){ const b=img._bg; delete img._bg; img.bg=b&&b.existing?b:(b&&idMap.has(b.imageId)?{...b,imageId:idMap.get(b.imageId)}:null); }
+    state.placeMode=proj.placeMode||'rect';
+    state.bgCands=(proj.bgCands||[]).filter(c=>idMap.has(c.imageId)).map(c=>({...c,imageId:idMap.get(c.imageId)}));
+    state.blockLayout=proj.blockLayout||'compact';
+    state.decisions=proj.decisions.map(d=>{ const nd={...d,id:nextId++}; if(d.kind==='sub') nd.subs=d.subs.map(s=>({...s,imageId:idMap.get(s.imageId)})).filter(s=>s.imageId); else nd.imageId=idMap.get(d.imageId); return nd; });
+    state.ignored=new Set(proj.ignored||[]);
+    state.mode=proj.mode||'new'; document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('on',x.dataset.m===state.mode));
+    state.existing={P:emptyEx(), S:emptyEx()};
+    for(const G of ['P','S']) if(proj.existing&&proj.existing[G]&&proj.existing[G].length) addExistingFiles(G, proj.existing[G].map(f=>({name:f.name, data:fromB64(f.b64)})), true);
+    state.exInfo=analyzeExisting();
+    recompute();
+  }catch(err){ toast('Questo file non è un progetto di Tileset Studio (.json salvato con "Salva progetto").',true); }
+};
+
+// ============================================================ esportazione
+const CRC=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
+function crc32(buf,crc=0xFFFFFFFF){ for(let i=0;i<buf.length;i++) crc=CRC[(crc^buf[i])&0xFF]^(crc>>>8); return crc; }
+async function zlib(raw){ return new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate'))).arrayBuffer()); }
+async function encodePNG(w,h,mode,pixels,palette){ // mode 'idx4' (pixels = indici 0-15) | 'rgba'
+  const stride=mode==='idx4'?Math.ceil(w/2):w*4, raw=new Uint8Array((stride+1)*h);
+  for(let y=0;y<h;y++){ const o=y*(stride+1); raw[o]=0;
+    if(mode==='idx4') for(let x=0;x<w;x+=2) raw[o+1+(x>>1)]=(pixels[y*w+x]<<4)|(x+1<w?pixels[y*w+x+1]:0);
+    else raw.set(pixels.subarray(y*w*4,(y+1)*w*4),o+1); }
+  const chunks=[];
+  const chunk=(type,data)=>{ const b=new Uint8Array(12+data.length), dv=new DataView(b.buffer); dv.setUint32(0,data.length); for(let i=0;i<4;i++) b[4+i]=type.charCodeAt(i); b.set(data,8); dv.setUint32(8+data.length,(crc32(b.subarray(4,8+data.length))^0xFFFFFFFF)>>>0); chunks.push(b); };
+  const ih=new Uint8Array(13), dv=new DataView(ih.buffer); dv.setUint32(0,w); dv.setUint32(4,h); ih[8]=mode==='idx4'?4:8; ih[9]=mode==='idx4'?3:6;
+  chunk('IHDR',ih);
+  if(mode==='idx4'){ const pl=new Uint8Array(48); palette.forEach((c,i)=>pl.set(gbaToRgb(c),i*3)); chunk('PLTE',pl); }
+  chunk('IDAT',await zlib(raw)); chunk('IEND',new Uint8Array(0));
+  return new Blob([new Uint8Array([137,80,78,71,13,10,26,10]),...chunks],{type:'image/png'});
+}
+function zip(files){ // [{name, data:Uint8Array}] metodo "store"
+  const enc=new TextEncoder(), parts=[], central=[]; let off=0;
+  const d=new Date(), dt=((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1)), dd=(((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate());
+  for(const f of files){
+    const nm=enc.encode(f.name), crc=(crc32(f.data)^0xFFFFFFFF)>>>0;
+    const lh=new Uint8Array(30+nm.length), l=new DataView(lh.buffer);
+    l.setUint32(0,0x04034b50,true); l.setUint16(4,20,true); l.setUint16(6,0x0800,true); l.setUint16(8,0,true); l.setUint16(10,dt,true); l.setUint16(12,dd,true); l.setUint32(14,crc,true); l.setUint32(18,f.data.length,true); l.setUint32(22,f.data.length,true); l.setUint16(26,nm.length,true); lh.set(nm,30);
+    const ch=new Uint8Array(46+nm.length), c=new DataView(ch.buffer);
+    c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint16(8,0x0800,true); c.setUint16(12,dt,true); c.setUint16(14,dd,true); c.setUint32(16,crc,true); c.setUint32(20,f.data.length,true); c.setUint32(24,f.data.length,true); c.setUint16(28,nm.length,true); c.setUint32(42,off,true); ch.set(nm,46);
+    parts.push(lh,f.data); central.push(ch); off+=lh.length+f.data.length;
+  }
+  const cdSize=central.reduce((s,x)=>s+x.length,0), end=new Uint8Array(22), e=new DataView(end.buffer);
+  e.setUint32(0,0x06054b50,true); e.setUint16(8,files.length,true); e.setUint16(10,files.length,true); e.setUint32(12,cdSize,true); e.setUint32(16,off,true);
+  return new Blob([...parts,...central,end],{type:'application/zip'});
+}
+// online (claude.ai) passa dal salvataggio della pagina; aperto dal PC usa un normale download
+let downloadsApi;
+async function download(blob,name){
+  if(downloadsApi===undefined) downloadsApi = window.claude?.use ? await window.claude.use('downloads').catch(()=>null) : null;
+  if(downloadsApi){
+    try{ await downloadsApi.save({filename:name, data:blob}); toast(`Salvato: ${name}`); }
+    catch(e){ if(e&&e.code!=='declined') toast(`Non riesco a salvare ${name} (${e&&e.code||'errore'}).`,true); }
+    return;
+  }
+  const a=el('a',{href:URL.createObjectURL(blob),download:name}); document.body.append(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },2000);
+}
+let toastTimer;
+function toast(msg,bad){ const t=$('#toast'); t.textContent=msg; t.classList.toggle('bad',!!bad); t.hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.hidden=true,4000); }
+async function buildExport(res){
+  const files=[], enc=new TextEncoder(), add=(name,data)=>files.push({name, data: typeof data==='string'?enc.encode(data):data});
+  const blobBytes=async b=>new Uint8Array(await b.arrayBuffer());
+  let info=`Tileset Studio — esportazione del ${new Date().toLocaleString('it-IT')}\n\n`;
+  for(const G of ['P','S']){
+    const g=res.groups[G], cfg=GROUPS[G], pre=G==='P'?'primario':'secondario';
+    if(!g.finals.length) continue;
+    const n=g.finals.length, rows=Math.ceil(n/16), W=128, H=rows*8, idx=new Uint8Array(W*H), rgba=new Uint8ClampedArray(W*H*4);
+    g.finals.forEach((ft,i)=>{ const pal=res.groups[ft.bin.g].pals[ft.bin.b]; const ox=(i%16)*8, oy=Math.floor(i/16)*8; for(let p=0;p<64;p++){ const v=ft.data[p], o=(oy+(p>>3))*W+ox+(p&7); idx[o]=v; if(v){ const [r,gg,b]=gbaToRgb(pal[v]); rgba[o*4]=r; rgba[o*4+1]=gg; rgba[o*4+2]=b; rgba[o*4+3]=255; } } });
+    add(`${pre}_tileset.png`, await blobBytes(await encodePNG(W,H,'idx4',idx,g.pals[0]||new Array(16).fill(0))));
+    add(`${pre}_anteprima_colori.png`, await blobBytes(await encodePNG(W,H,'rgba',rgba)));
+    let hma=`// Palette ${cfg.name} — byte GBA little-endian, 32 byte per palette\n`;
+    g.pals.forEach((pal,b)=>{
+      const s=slotOf(G,b); if(s<0) return;
+      add(`${pre}_palette_${String(s).padStart(2,'0')}.pal`, 'JASC-PAL\r\n0100\r\n16\r\n'+pal.map(c=>gbaToRgb(c).join(' ')).join('\r\n')+'\r\n');
+      hma+=`\nPalette ${s}:\n`+pal.map(c=>(c&0xFF).toString(16).toUpperCase().padStart(2,'0')+' '+(c>>8).toString(16).toUpperCase().padStart(2,'0')).join(' ')+'\n';
+    });
+    add(`${pre}_palette_HMA.txt`, hma);
+    const bl=res.blocks[G];
+    if(bl.length){
+      const bin=new Uint8Array(bl.length*16), att=new Uint8Array(bl.length*4), bdv=new DataView(bin.buffer), adv=new DataView(att.buffer);
+      bl.forEach((b,i)=>{ b.words.forEach((w,j)=>bdv.setUint16(i*16+j*2,w,true)); adv.setUint32(i*4,b.attr>>>0,true); });
+      add(`${pre}_blocchi.bin`, bin); add(`${pre}_attributi.bin`, att);
+      const hx=a=>[...a].map(v=>v.toString(16).toUpperCase().padStart(2,'0')).join(' ');
+      add(`${pre}_blocchi_HMA.txt`, hx(bin)); add(`${pre}_attributi_HMA.txt`, hx(att));
+    }
+    const st=groupStats(res,G);
+    info+=`== ${cfg.name.toUpperCase()} ==\nTile: ${st.tiles} / ${cfg.maxTiles}\nBlocchi: ${st.blocks} / ${MAX_BLOCKS[G]} (da ${hex3(blockNum({g:G,n:0}))} a ${hex3(blockNum({g:G,n:Math.max(0,st.blocks-1)}))})\nPalette: ${st.pals} / ${cfg.maxPals} (slot ${g.bins.map((_,b)=>slotLabel(G,b)).join(', ')})\n`;
+    if(st.blocks>MAX_BLOCKS[G]) info+=`ATTENZIONE: troppi blocchi, il ${cfg.name.toLowerCase()} ne contiene al massimo ${MAX_BLOCKS[G]}\n`;
+    if(st.pals>cfg.maxPals) info+=`ATTENZIONE: palette fuori budget, non esportate: ${g.bins.map((_,b)=>slotLabel(G,b)).filter(l=>l.includes('+')).join(', ')}\n`;
+    info+=`Nel PNG indicizzato conta l'indice dei pixel, non il colore mostrato: i colori veri sono nei file .pal.\n`;
+    info+=`I .pal sono RGB standard (AdvanceMap e programmi di grafica). HMA nei suoi .pal scambia rosso e blu:\nnon importarli con "Import Palette" di HMA, usa lo script .hma.\n\n`;
+  }
+  info+=`== FILE DEI BLOCCHI ==
+*_blocchi.bin   : 16 byte per blocco (8 voci a 16 bit: layer sotto alto-sx, alto-dx, basso-sx, basso-dx, poi layer sopra).
+                  Ogni voce = numero tile (bit 0-9) + flip H (bit 10) + flip V (bit 11) + palette (bit 12-15).
+*_attributi.bin : 4 byte per blocco. Comportamento 0 (da impostare in HMA); tipo di layer: normale (00 00 00 00)
+                  o coperto (00 00 00 20 = entrambi i layer sotto il giocatore).
+*_HMA.txt       : gli stessi byte in esadecimale.
+ATTENZIONE: il pulsante "Import Blocks" di HMA vuole un formato diverso (18 byte per blocco) e non va usato
+con questi file. Per HMA usa lo script importa_tileset*.hma qui accanto: scrive tutto da solo.
+
+== IMPORTARE IN HMA CON LO SCRIPT ==
+1. Apri la ROM in HMA e apri la mappa di destinazione nell'editor mappe
+   (oppure scrivi banco.mappa nel campo "Mappa HMA" del tool prima di esportare).
+2. Torna alla vista esadecimale (nell'editor mappe: freccia Indietro) e trascina il file .hma nella finestra.
+   Mentre trascini deve comparire la descrizione dello script; se non compare sei nella vista sbagliata
+   e HMA aprirebbe il file come una ROM.
+3. Se il tileset è condiviso con altre mappe, HMA ti chiede se farne una copia solo per questa mappa.
+4. Controlla la mappa. Ctrl+S salva, Ctrl+Z annulla tutto in un colpo.
+I dati nuovi vanno in spazio libero; quelli vecchi restano dove sono.
+
+== MAPPA DEI BLOCCHI PER IMMAGINE ==
+Numero del blocco in HMA per ogni quadrato 16x16 (riga per riga). "----" = vuoto, non esportato.
+`;
+  for(const im of res.imgs){
+    info+=`\n-- ${im.img.name} --\n`;
+    for(let by=0;by<im.bh;by++){ let row=''; for(let bx=0;bx<im.bw;bx++){ const b=im.blocks[by*im.bw+bx]; row+=(b?hex3(blockNum(b.ref))+((im.img.blockModes||{})[bx+','+by]==='top'?'^':' '):'----  ')+' '; } info+=row.trimEnd()+'\n'; }
+  }
+  info+='(^ = sopra il giocatore)\n\n';
+  info+='== GUIDA TILE PER BLOCCO (16×16) ==\nOrdine: alto-sx | alto-dx | basso-sx | basso-dx. "pal" = slot palette. Tile del secondario partono da 0x280.\n';
+  for(const im of res.imgs){
+    info+=`\n-- ${im.img.name} (${GROUPS[im.img.target].name}, ${im.W/16}×${im.H/16} blocchi) --\n`;
+    for(let by=0;by<im.th/2;by++) for(let bx=0;bx<im.tw/2;bx++){
+      const q=[0,1,2,3].map(sub=>{ const c=im.cells[(by*2+(sub>>1))*im.tw+bx*2+(sub&1)]; if(c.empty) return 'vuoto'; return c.parts.map((p,i)=>(c.parts.length>1?(i?'sopra ':'sotto '):'')+hex3(tileNum(p.tile))+' pal '+slotLabel(p.bin.g,p.bin.b)+(p.flip&1?' H':'')+(p.flip&2?' V':'')).join(' + '); });
+      info+=`blocco (${bx},${by}): ${q.join(' | ')}\n`;
+    }
+  }
+  add('LEGGIMI_info.txt', info);
+  const t=parseHmaTarget($('#hmaTarget').value);
+  if(!hmaProblems(res).length) add(hmaFileName(t.ok?t.target:null), buildHma(res, t.ok?t.target:null));
+  return files;
+}
+// ============================================================ script .hma per HexManiacAdvance (0.5.x)
+// Il codice Python gira dentro HMA (IronPython): scrive tile, palette, blocchi e attributi in spazio libero
+// e aggiorna i puntatori del tileset della mappa. I dati vecchi non vengono toccati; tutto è annullabile con Ctrl+Z.
+const HMA_PY = `import clr
+clr.AddReference("HexManiac.Core")
+from System import Array, Byte, Func
+from HavenSoft.HexManiac.Core.Models import ModelDelta, VisualOption
+from HavenSoft.HexManiac.Core.Models.Runs.Sprites import LZRun
+from HavenSoft.HexManiac.Core.ViewModels.Map import BlockMapViewModel, MapRepointer
+
+def _ts_arr(b):
+    return Array[Byte](list(b))
+
+def _ts_option(i, title, short, desc):
+    o = VisualOption()
+    o.Index = i
+    o.Option = title
+    o.ShortDescription = short
+    o.Description = desc
+    return o
+
+def _ts_users(model, start):
+    run = model.GetNextRun(start)
+    if run is None or run.Start != start or run.PointerSources is None:
+        return 1
+    return run.PointerSources.Count
+
+def _ts_write(model, hist, bs, d):
+    tiles = bytes.fromhex(d["tiles"])
+    if bs.GetValue("isCompressed") != 0:
+        tdata = LZRun.Compress(_ts_arr(tiles))
+    else:
+        tdata = _ts_arr(tiles)
+    tlen = len(tdata)
+    raw = model.RawData
+    pal = bytearray(0x200)
+    old = bs.GetAddress("pal")
+    if old >= 0 and old + 0x200 <= len(raw):
+        for i in range(0x200):
+            pal[i] = raw[old + i]
+    for slot, hx in d["pals"]:
+        pal[slot * 32:slot * 32 + 32] = bytes.fromhex(hx)
+    blocks = bytes.fromhex(d["blocks"])
+    attrs = bytes.fromhex(d["attrs"])
+    o_p = (tlen + 3) & ~3
+    o_b = o_p + 0x200
+    o_a = o_b + len(blocks)
+    total = o_a + len(attrs)
+    start = model.FindFreeSpace(model.FreeSpaceStart, total)
+    if start < 0:
+        raise Exception("Tileset Studio: non c'e' abbastanza spazio libero nella ROM (servono %d byte)." % total)
+    tok = hist.CurrentChange
+    tok.ChangeData(model, start, tdata)
+    tok.ChangeData(model, start + o_p, _ts_arr(pal))
+    tok.ChangeData(model, start + o_b, _ts_arr(blocks))
+    tok.ChangeData(model, start + o_a, _ts_arr(attrs))
+    bs.SetAddress("tileset", start)
+    bs.SetAddress("pal", start + o_p)
+    bs.SetAddress("blockset", start + o_b)
+    bs.SetAddress("attributes", start + o_a)
+    return start, total
+
+def _ts_fnv(values):
+    h = 0x811C9DC5
+    for x in values:
+        h ^= x
+        h = (h * 0x01000193) & 0xFFFFFFFF
+    return h
+
+def _ts_read(raw, start, n):
+    return bytearray([int(raw[start + i]) for i in range(n)])
+
+def _ts_existing(model, bs, d):
+    # legge dalla ROM il secondario attuale e controlla che sia lo stesso caricato nel tool
+    raw = model.RawData
+    ta = bs.GetAddress("tileset")
+    nt = d["exTiles"] * 32
+    if bs.GetValue("isCompressed") != 0:
+        dec = LZRun.Decompress(raw, ta)
+        if dec is None:
+            return None, "il tileset non si decomprime"
+        tiles = bytearray([int(x) for x in dec])
+        if len(tiles) != nt:
+            return None, "il tileset ha %d tile invece di %d" % (len(tiles) // 32, d["exTiles"])
+    else:
+        tiles = _ts_read(raw, ta, nt)
+    nb = d["exBlocks"]
+    blocks = _ts_read(raw, bs.GetAddress("blockset"), nb * 16)
+    attrs = _ts_read(raw, bs.GetAddress("attributes"), nb * 4)
+    pal = _ts_read(raw, bs.GetAddress("pal"), 0x200)
+    pvals = [(pal[i] | (pal[i + 1] << 8)) & 0x7FFF for i in range(7 * 32, 13 * 32, 2)]
+    if _ts_fnv(tiles) != d["hashTiles"]:
+        return None, "tile diversi"
+    if _ts_fnv(blocks) != d["hashBlocks"]:
+        return None, "blocchi diversi"
+    if _ts_fnv(pvals) != d["hashPals"]:
+        return None, "palette 7-12 diverse"
+    return (tiles, blocks, attrs, pal), None
+
+def _ts_store(model, hist, bs, tiles, pal, blocks, attrs):
+    # scrive tutto in una zona libera e ripunta il tileset: i dati vecchi restano dove sono
+    if bs.GetValue("isCompressed") != 0:
+        tdata = LZRun.Compress(_ts_arr(tiles))
+    else:
+        tdata = _ts_arr(tiles)
+    tlen = len(tdata)
+    o_p = (tlen + 3) & ~3
+    o_b = o_p + 0x200
+    o_a = o_b + len(blocks)
+    total = o_a + len(attrs)
+    start = model.FindFreeSpace(model.FreeSpaceStart, total)
+    if start < 0:
+        raise Exception("Tileset Studio: non c'e' abbastanza spazio libero nella ROM (servono %d byte)." % total)
+    tok = hist.CurrentChange
+    tok.ChangeData(model, start, tdata)
+    tok.ChangeData(model, start + o_p, _ts_arr(pal))
+    tok.ChangeData(model, start + o_b, _ts_arr(blocks))
+    tok.ChangeData(model, start + o_a, _ts_arr(attrs))
+    bs.SetAddress("tileset", start)
+    bs.SetAddress("pal", start + o_p)
+    bs.SetAddress("blockset", start + o_b)
+    bs.SetAddress("attributes", start + o_a)
+    return start, total
+
+def _ts_write_add(model, hist, bs, d, ex):
+    tiles, blocks, attrs, pal = ex
+    need = d["ntiles"] * 32
+    if len(tiles) < need:
+        tiles.extend(bytearray(need - len(tiles)))
+    for k, hx in d["tiles"]:
+        tiles[k * 32:k * 32 + 32] = bytes.fromhex(hx)
+    for slot, idx, c in d["pal"]:
+        pal[slot * 32 + idx * 2] = c & 255
+        pal[slot * 32 + idx * 2 + 1] = (c >> 8) & 255
+    nb = d["nblocks"]
+    if len(blocks) < nb * 16:
+        blocks.extend(bytearray(nb * 16 - len(blocks)))
+    if len(attrs) < nb * 4:
+        attrs.extend(bytearray(nb * 4 - len(attrs)))
+    for slot, hx, at in d["blocks"]:
+        blocks[slot * 16:slot * 16 + 16] = bytes.fromhex(hx)
+        attrs[slot * 4:slot * 4 + 4] = bytes([at & 255, (at >> 8) & 255, (at >> 16) & 255, (at >> 24) & 255])
+    return _ts_store(model, hist, bs, tiles, pal, blocks, attrs)
+
+def _ts_main():
+    vp = editor.SelectedTab
+    if vp is not None and hasattr(vp, "PrimaryMap") and hasattr(vp, "ViewPort"):
+        vp = vp.ViewPort
+    if vp is None or not hasattr(vp, "Model"):
+        raise Exception("Tileset Studio: apri prima la ROM in HMA.")
+    model = vp.Model
+    hist = vp.ChangeHistory
+    tf = Func[ModelDelta](lambda: hist.CurrentChange)
+    if TS_TARGET is not None:
+        g, m = TS_TARGET[0], TS_TARGET[1]
+    else:
+        me = vp.MapEditor
+        if me is None or me.PrimaryMap is None:
+            raise Exception("Tileset Studio: apri prima la mappa nell'editor mappe di HMA, torna alla vista esadecimale e trascina di nuovo questo file (oppure scrivi banco.mappa nel tool).")
+        mid = me.PrimaryMap.MapID
+        g, m = mid // 1000, mid % 1000
+    mp = BlockMapViewModel.GetMapModel(model, g, m, tf)
+    if mp is None:
+        raise Exception("Tileset Studio: la mappa %d.%d non esiste in questa ROM." % (g, m))
+    layout = mp.GetSubTable("layout")[0]
+    if TS_MODE == "add":
+        return _ts_main_add(vp, model, hist, layout, g, m)
+    plan = []
+    for key, field, label in (("P", "blockdata1", "primario"), ("S", "blockdata2", "secondario")):
+        if key not in TS:
+            continue
+        bs = layout.GetSubTable(field)[0]
+        users = _ts_users(model, bs.Start)
+        copy = False
+        cancel = _ts_option(2, "Annulla", "Non scrivere niente", "Esci senza modificare la ROM.")
+        if users > 1:
+            options = Array[VisualOption]([
+                _ts_option(0, "Solo la mappa %d.%d" % (g, m), "Consigliato", "Crea una copia del tileset %s solo per la mappa %d.%d. Le altre mappe restano come sono." % (label, g, m)),
+                _ts_option(1, "Tutte le %d mappe" % users, "Cambia anche le altre", "Il nuovo tileset sostituisce quello attuale in tutte le mappe che lo usano."),
+                cancel])
+            prompt = "Mappa %d.%d: il suo tileset %s e' usato da %d layout. Dove vuoi il nuovo tileset?" % (g, m, label, users)
+        else:
+            options = Array[VisualOption]([
+                _ts_option(1, "Importa nella mappa %d.%d" % (g, m), "Tileset %s" % label, "Il tileset %s e' usato solo da questa mappa: viene sostituito." % label),
+                cancel])
+            prompt = "Importare il nuovo tileset %s nella mappa %d.%d?" % (label, g, m)
+        choice = editor.FileSystem.ShowOptions("Tileset Studio", prompt, None, options)
+        if choice == 0:
+            copy = True
+        elif choice != 1:
+            return "Tileset Studio: importazione annullata, la ROM non e' stata modificata."
+        plan.append((key, field, label, copy))
+    lines = []
+    for key, field, label, copy in plan:
+        if copy:
+            bs = layout.GetSubTable(field)[0]
+            new = MapRepointer.DuplicateData(model, hist, bs.Start, 24)
+            layout.SetAddress(field, new)
+        bs = layout.GetSubTable(field)[0]
+        start, total = _ts_write(model, hist, bs, TS[key])
+        d = TS[key]
+        lines.append("%s: %d tile, palette %s, %d blocchi, scritti a %06X (%d byte)%s" % (label, d["ntiles"], d["slots"], d["nblocks"], start, total, ", copia solo per questa mappa" if copy else ""))
+    hist.ChangeCompleted()
+    me = vp.MapEditor
+    if me is not None:
+        for bm in me.VisibleMaps:
+            bm.ClearCaches()
+        if me.PrimaryMap is not None:
+            me.PrimaryMap.ClearCaches()
+    vp.Refresh()
+    nl = chr(10)
+    return "Tileset Studio: mappa %d.%d aggiornata." % (g, m) + nl + nl.join(lines) + nl + "Controlla la mappa, poi Ctrl+S per salvare oppure Ctrl+Z per annullare."
+
+def _ts_refresh(vp):
+    me = vp.MapEditor
+    if me is not None:
+        for bm in me.VisibleMaps:
+            bm.ClearCaches()
+        if me.PrimaryMap is not None:
+            me.PrimaryMap.ClearCaches()
+    vp.Refresh()
+
+def _ts_main_add(vp, model, hist, layout, g, m):
+    d = TS["S"]
+    bs = layout.GetSubTable("blockdata2")[0]
+    ex, err = _ts_existing(model, bs, d)
+    if ex is None:
+        raise Exception("Tileset Studio: il secondario della mappa %d.%d non corrisponde agli export caricati nel tool (%s). Riesporta da HMA tileset, palette e blocchi di questa mappa, ricaricali nel tool e rigenera lo script. La ROM non e' stata modificata." % (g, m, err))
+    users = _ts_users(model, bs.Start)
+    cancel = _ts_option(2, "Annulla", "Non scrivere niente", "Esci senza modificare la ROM.")
+    if users > 1:
+        options = Array[VisualOption]([
+            _ts_option(1, "Tutte le %d mappe" % users, "Consigliato", "Il tileset resta quello di sempre, con in piu' la nuova grafica: le altre mappe non cambiano (tranne eventuali blocchi che hai scelto di sovrascrivere)."),
+            _ts_option(0, "Solo la mappa %d.%d" % (g, m), "Crea una copia", "Copia il tileset solo per questa mappa e aggiunge la grafica li'. Le altre mappe restano col tileset di prima."),
+            cancel])
+        prompt = "Mappa %d.%d: il suo tileset secondario e' usato da %d layout. Dove aggiungere la nuova grafica?" % (g, m, users)
+    else:
+        options = Array[VisualOption]([
+            _ts_option(1, "Aggiungi alla mappa %d.%d" % (g, m), "Tileset secondario", "Aggiunge la nuova grafica al tileset di questa mappa."),
+            cancel])
+        prompt = "Aggiungere la nuova grafica al tileset secondario della mappa %d.%d?" % (g, m)
+    choice = editor.FileSystem.ShowOptions("Tileset Studio", prompt, None, options)
+    if choice not in (0, 1):
+        return "Tileset Studio: importazione annullata, la ROM non e' stata modificata."
+    copy = choice == 0
+    if copy:
+        new = MapRepointer.DuplicateData(model, hist, bs.Start, 24)
+        layout.SetAddress("blockdata2", new)
+        bs = layout.GetSubTable("blockdata2")[0]
+    start, total = _ts_write_add(model, hist, bs, d, ex)
+    hist.ChangeCompleted()
+    _ts_refresh(vp)
+    nl = chr(10)
+    msg = "Tileset Studio: grafica aggiunta al secondario della mappa %d.%d%s." % (g, m, " (copia solo per questa mappa)" if copy else (" e delle altre %d mappe che lo usano" % (users - 1) if users > 1 else ""))
+    msg += nl + "%d tile nuovi, %d colori nuovi, %d blocchi (%d al posto di blocchi esistenti), scritti a %06X (%d byte)." % (d["newTiles"], len(d["pal"]), len(d["blocks"]), d["overwrite"], start, total)
+    return msg + nl + "Controlla la mappa, poi Ctrl+S per salvare oppure Ctrl+Z per annullare."
+
+print(_ts_main())`;
+const toHex=a=>Array.from(a,v=>v.toString(16).padStart(2,'0')).join('');
+function parseHmaTarget(txt){
+  txt=(txt||'').trim(); if(!txt) return {ok:true, target:null};
+  const m=txt.match(/^(\d{1,3})\s*[.,\s]\s*(\d{1,3})$/); if(!m) return {ok:false};
+  return {ok:true, target:[+m[1],+m[2]]};
+}
+function hmaProblems(res){
+  const out=[];
+  for(const G of ['P','S']){
+    if(!state.images.some(i=>i.target===G)) continue;
+    const st=groupStats(res,G), cfg=GROUPS[G];
+    if(st.pals>cfg.maxPals) out.push(`${cfg.name}: ${st.pals} palette su ${cfg.maxPals}`);
+    if(st.tiles>cfg.maxTiles) out.push(`${cfg.name}: ${st.tiles} tile su ${cfg.maxTiles}`);
+    if(st.blocks>MAX_BLOCKS[G]) out.push(`${cfg.name}: ${st.blocks} blocchi su ${MAX_BLOCKS[G]}`);
+  }
+  return out;
+}
+function buildHma(res, target){
+  const ts={}, head=[];
+  for(const G of ['P','S']){
+    const g=res.groups[G], bl=res.blocks[G];
+    if(!state.images.some(i=>i.target===G)) continue;
+    const n=Math.max(1,g.finals.length), tiles=new Uint8Array(n*32);
+    g.finals.forEach((ft,i)=>{ for(let p=0;p<64;p+=2) tiles[i*32+(p>>1)]=ft.data[p]|(ft.data[p+1]<<4); });
+    const blocks=new Uint8Array(bl.length*16), attrs=new Uint8Array(bl.length*4), bdv=new DataView(blocks.buffer), adv=new DataView(attrs.buffer);
+    bl.forEach((b,i)=>{ b.words.forEach((w,j)=>bdv.setUint16(i*16+j*2,w,true)); adv.setUint32(i*4,b.attr>>>0,true); });
+    const pals=g.pals.map((pal,b)=>{ const s=slotOf(G,b), u=new Uint8Array(32), dv=new DataView(u.buffer); pal.forEach((c,k)=>dv.setUint16(k*2,c,true)); return [s,toHex(u)]; });
+    const slots=pals.map(p=>p[0]);
+    ts[G]={tiles:toHex(tiles), pals, blocks:toHex(blocks), attrs:toHex(attrs), ntiles:g.finals.length, nblocks:bl.length, slots:slots.length?slots.join(','):'nessuna'};
+    head.push(`# ${GROUPS[G].name}: ${g.finals.length} tile, palette ${ts[G].slots}, ${bl.length} blocchi`);
+  }
+  const lines=[
+    '# Tileset Studio - importa tileset, palette e blocchi in HexManiacAdvance',
+    `# Mappa: ${target?target.join('.'):"quella aperta nell'editor mappe di HMA"}`,
+    ...head,
+    "# I dati vanno in spazio libero: quelli vecchi non vengono toccati.",
+    "# Va trascinato sulla VISTA ESADECIMALE: se e' aperta la mappa, usa la freccia Indietro.",
+    "# Se stai leggendo queste righe mentre trascini, sei nel posto giusto: rilascia.",
+    '# Poi controlla la mappa: Ctrl+S salva, Ctrl+Z annulla.',
+    '',
+    '.python',
+    'TS_MODE = "new"',
+    'TS_TARGET = '+(target?`(${target[0]}, ${target[1]})`:'None'),
+    'TS = '+JSON.stringify(ts),
+    HMA_PY,
+    '.end',
+    ''];
+  return lines.join('\r\n');
+}
+function hmaFileName(target){ return (state.mode==='add'?'aggiungi_tileset':'importa_tileset')+(target?'_'+target.join('.'):'')+'.hma'; }
+// impronta FNV-1a a 32 bit (la stessa calcolata dallo script dentro HMA)
+function fnv32(vals){ let h=0x811C9DC5>>>0; for(const x of vals){ h=(h^x)>>>0; h=Math.imul(h,0x01000193)>>>0; } return h; }
+function addProblems(res){
+  if(!addActive()) return ['carica a sinistra tileset, palette 07–0C e blocchi del secondario esistente'];
+  if(!res||!res.add) return ['carica qualche immagine'];
+  const st=groupStats(res,'S'), out=[], tot=res.groups.S.finals.length;
+  if(st.pals) out.push(`${st.pals} palette "fuori": una parte della grafica non entra nelle palette esistenti`);
+  if(tot>GROUPS.S.maxTiles) out.push(`${tot} tile su ${GROUPS.S.maxTiles}`);
+  if(st.unplacedBlocks) out.push(`${st.unplacedBlocks} blocchi senza posto`);
+  if(st.conflicts) out.push(`${st.conflicts} blocchi in conflitto (sovrascrittura da confermare o posizione da cambiare)`);
+  return out;
+}
+function buildHmaAdd(res, target){
+  const e=state.existing.S, gi=state.exInfo.groups.S, g=res.groups.S, pl=res.blocks.place;
+  const exTiles=state.exInfo.tS.length, exBlocks=gi.blocks.length;
+  const palVals=[]; for(let s=7;s<13;s++) for(const c of e.pals[s]) palVals.push(c&0x7FFF);
+  const tiles=[]; g.finals.forEach((f,k)=>{ if(f&&!f.existing){ const u=new Uint8Array(32); for(let p=0;p<64;p+=2) u[p>>1]=f.data[p]|(f.data[p+1]<<4); tiles.push([k,toHex(u)]); } });
+  const pal=[]; for(let s=7;s<13;s++) for(const a of g.added[s]) pal.push([s,a.idx,a.color]);
+  const blocks=[]; let maxSlot=-1;
+  for(const [slot,t] of [...pl.taken].sort((a,b)=>a[0]-b[0])){
+    const c=t.im.blocks[t.i].content, u=new Uint8Array(16), dv=new DataView(u.buffer);
+    c.words.forEach((w,j)=>dv.setUint16(j*2,w,true)); blocks.push([slot,toHex(u),c.attr>>>0]); maxSlot=Math.max(maxSlot,slot);
+  }
+  const d={exTiles, exBlocks, hashTiles:fnv32(e.tiles.subarray(0,exTiles*32)), hashBlocks:fnv32(e.blocksFile.subarray(0,exBlocks*16)), hashPals:fnv32(palVals),
+    ntiles:g.finals.length, nblocks:Math.max(exBlocks,maxSlot+1), tiles, pal, blocks, newTiles:tiles.length, overwrite:pl.overwrite};
+  const lines=[
+    '# Tileset Studio - aggiunge grafica a un tileset secondario esistente (HexManiacAdvance)',
+    `# Mappa: ${target?target.join('.'):"quella aperta nell'editor mappe di HMA"}`,
+    `# Aggiunge: ${tiles.length} tile, ${pal.length} colori nei posti liberi, ${blocks.length} blocchi${pl.overwrite?` (${pl.overwrite} al posto di blocchi esistenti)`:''}`,
+    "# Prima controlla che il secondario nella ROM sia quello degli export caricati nel tool.",
+    "# I dati vanno in spazio libero: quelli vecchi non vengono toccati.",
+    "# Va trascinato sulla VISTA ESADECIMALE: se e' aperta la mappa, usa la freccia Indietro.",
+    "# Se stai leggendo queste righe mentre trascini, sei nel posto giusto: rilascia.",
+    '',
+    '.python',
+    'TS_MODE = "add"',
+    'TS_TARGET = '+(target?`(${target[0]}, ${target[1]})`:'None'),
+    'TS = '+JSON.stringify({S:d}),
+    HMA_PY,
+    '.end',
+    ''];
+  return lines.join('\r\n');
+}
+function addReadme(res){
+  const pl=res.blocks.place, st=groupStats(res,'S');
+  let t=`Tileset Studio — aggiunta al secondario esistente (${new Date().toLocaleString('it-IT')})\n\n`;
+  t+=`Tile nuovi: ${st.tiles}${st.recycled?` (di cui ${st.recycled} al posto di tile non usati)`:''}\nColori nuovi: ${st.colors}\nBlocchi: ${pl.taken.size}${pl.overwrite?` (${pl.overwrite} sostituiscono blocchi esistenti)`:''}\n\n`;
+  t+='Colori scritti nei posti liberi delle palette:\n';
+  for(let s=7;s<13;s++) for(const a of res.groups.S.added[s]) t+=`  palette ${s}, colore ${a.idx}: ${gbaHex(a.color)}\n`;
+  t+='\nPosizione dei blocchi per immagine (numero in HMA, riga per riga; ---- = vuoto):\n';
+  for(const im of res.imgs){
+    t+=`\n-- ${im.img.name} --\n`;
+    for(let by=0;by<im.bh;by++){ let row=''; for(let bx=0;bx<im.bw;bx++){ const b=im.blocks[by*im.bw+bx]; row+=(b&&b.ref?hex3(blockNum(b.ref)):'----')+' '; } t+=row.trimEnd()+'\n'; }
+  }
+  t+='\nI blocchi nuovi hanno comportamento 0: impostalo in HMA se serve (erba alta, acqua…).\n';
+  return t;
+}
+async function saveHmaScript(text, name){
+  // online la pagina può salvare solo alcuni formati: lo script viaggia dentro uno zip
+  if(downloadsApi===undefined) downloadsApi = window.claude?.use ? await window.claude.use('downloads').catch(()=>null) : null;
+  if(downloadsApi) await download(zip([{name, data:new TextEncoder().encode(text)}]), name.replace(/\.hma$/,'.zip'));
+  else await download(new Blob([text],{type:'text/plain'}), name);
+  showHmaHelp(name);
+}
+$('#btnHma').onclick=async()=>{
+  const res=state.result;
+  const t=parseHmaTarget($('#hmaTarget').value); $('#hmaTarget').classList.toggle('bad',!t.ok);
+  if(!t.ok){ toast('Scrivi la mappa come banco.mappa, per esempio 3.4, oppure lascia vuoto.',true); return; }
+  if(state.mode==='add'){
+    const prob=addProblems(res); if(prob.length){ toast('Prima sistema: '+prob.join(' · '),true); return; }
+    await saveHmaScript(buildHmaAdd(res,t.target), hmaFileName(t.target)); return;
+  }
+  if(!res){ toast('Carica prima qualche immagine.',true); return; }
+  const prob=hmaProblems(res); if(prob.length){ toast('Prima rientra nei limiti: '+prob.join(' · '),true); return; }
+  await saveHmaScript(buildHma(res,t.target), hmaFileName(t.target));
+};
+function showHmaHelp(name){
+  const box=$('#hmaHelp'); box.hidden=false;
+  $('#hmaHelpName').textContent=name;
+}
+$('#hmaTarget').addEventListener('input',e=>e.target.classList.remove('bad'));
+$('#hmaHelpClose').onclick=()=>{ $('#hmaHelp').hidden=true; };
+$('#btnExport').onclick=async()=>{
+  if(state.mode==='add'){
+    const res=state.result, t=parseHmaTarget($('#hmaTarget').value);
+    const prob=addProblems(res); if(prob.length){ toast('Prima sistema: '+prob.join(' · '),true); return; }
+    const enc=new TextEncoder();
+    download(zip([{name:hmaFileName(t.ok?t.target:null), data:enc.encode(buildHmaAdd(res,t.ok?t.target:null))},{name:'LEGGIMI_aggiunta.txt', data:enc.encode(addReadme(res))}]),'tileset_aggiunta.zip');
+    return;
+  }
+  if(!state.result) return; const files=await buildExport(state.result); download(zip(files),'tileset_export.zip'); };
+
+// ============================================================ test automatico (?selftest / ?demo)
+function synth(w,h,fn){ const c=document.createElement('canvas'); c.width=w; c.height=h; const ctx=c.getContext('2d'), d=ctx.createImageData(w,h); for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const v=fn(x,y); if(v){ const o=(y*w+x)*4; d.data[o]=v[0]; d.data[o+1]=v[1]; d.data[o+2]=v[2]; d.data[o+3]=v[3]??255; } } ctx.putImageData(d,0,0); return c.toDataURL('image/png'); }
+async function loadDemo(){
+  const rnd=mulberry32(7);
+  const casa=synth(48,48,(x,y)=>{
+    if(y<18){ if(Math.abs(x-24)>y+6) return null; return [150+((x+y)%6)*16,40+(y%3)*12,40]; }
+    if(x<4||x>43) return null;
+    if(x>=10&&x<18&&y>=24&&y<32) return [60,100+(x%3)*30,200+(y%2)*40];
+    if(x>=28&&x<36&&y>=26&&y<48) return [100+(y%4)*12,60+(x%2)*10,30];
+    if(x>=4&&x<12&&y>=36&&y<44) return [Math.floor(rnd()*256)&0xF8,Math.floor(rnd()*256)&0xF8,Math.floor(rnd()*256)&0xF8];
+    return [220-(x%5)*8,200-(y%4)*8,160];
+  });
+  const tree=(shift)=>synth(32,32,(x,y)=>{
+    const dx=x-16, dy=y-12; if(dx*dx+dy*dy<120) { const k=(x*3+y*5)%7; return [30+k*8+shift,110+k*16+shift,40+k*6]; }
+    if(x>=13&&x<19&&y>=20&&y<32) return [110+(y%3)*16,70+(x%2)*10,30];
+    return null;
+  });
+  const fiori=synth(32,16,(x,y)=>((x+y)%4===0)?[240,(x*20)%256,(y*40)%256]:[60+(y%2)*8,150,60]);
+  await addImage('casa.png',casa,'S'); await addImage('albero.png',tree(0),'S'); await addImage('albero_b.png',tree(8),'S'); await addImage('fiori.png',fiori,'P');
+  for(const i of state.images) if(i.name!=='fiori.png') i.trans={mode:'alpha',color:null};
+}
+async function selftest(){
+  const log=[]; const pre=$('#selftest'); pre.hidden=false; const _push=log.push.bind(log); log.push=(...a)=>{ _push(...a); pre.textContent=log.join('\n'); }; const ok=(c,m)=>log.push((c?'OK   ':'FAIL ')+m);
+  log.push('start');
+  await loadDemo(); log.push('demo caricata: '+state.images.length);
+  let res=run([]); state.result=res;
+  // 1) la ricostruzione dai tile+palette coincide coi pixel attesi (riduzioni/sostituzioni incluse)
+  const check=(res,tag)=>{ for(const im of res.imgs){ const r=renderResult(res,im).data; let bad=0; for(const cell of im.seq){ let exp=cell.orig; if(cell.ov) exp=null; for(let y=0;y<8&&exp;y++) for(let x=0;x<8;x++){ const c=exp[y*8+x], o=((cell.ty*8+y)*im.W+cell.tx*8+x)*4; const got=r[o+3]?rgbToGba(r[o],r[o+1],r[o+2]):TRANSP; if(got!==c) bad++; } } ok(bad===0,`${tag}: ricostruzione ${im.img.name} (${bad} pixel diversi)`); } };
+  check(res,'base');
+  for(const G of ['P','S']){ const g=res.groups[G]; g.bins.forEach((b,i)=>ok(b.length<=CAP,`${G} pal ${i}: ${b.length} colori`)); }
+  // ogni tile usa solo colori della sua palette
+  let viol=0; for(const u of res.utiles){ const bs=res.groups[u.bin.g].binSets[u.bin.b]; if(!u.colors.every(c=>bs.has(c))) viol++; } ok(viol===0,'ogni tile sta nella sua palette');
+  log.push('stats P '+JSON.stringify(groupStats(res,'P'))+' S '+JSON.stringify(groupStats(res,'S')));
+  // 2) split layer
+  const casaId=state.images[0].id;
+  const rs=run([{kind:'overflow',imageId:casaId,mode:'split'}]);
+  const ov=rs.byId.get(casaId).overflow; ok(ov.length>0 && ov.every(c=>c.parts.length===2),'split: tile in 2 layer ('+ov.length+')');
+  const im=rs.byId.get(casaId), r=renderResult(rs,im).data; let bad=0;
+  for(const cell of ov){ if(cell.err>0) continue; for(let y=0;y<8;y++) for(let x=0;x<8;x++){ const c=cell.orig[y*8+x], o=((cell.ty*8+y)*im.W+cell.tx*8+x)*4; const got=r[o+3]?rgbToGba(r[o],r[o+1],r[o+2]):TRANSP; if(got!==c) bad++; } }
+  ok(bad===0,'split: qualità intatta nei tile divisi ('+bad+')');
+  log.push('split stats S '+JSON.stringify(groupStats(rs,'S')));
+  // 2b) blocchi: senza sfondo la vista blocchi coincide col risultato (anche con tile divisi)
+  const sameImg=(a,b)=>{ let n=0; for(let i=0;i<a.length;i+=4){ if(a[i+3]!==b[i+3]) n++; else if(a[i+3]&&(a[i]!==b[i]||a[i+1]!==b[i+1]||a[i+2]!==b[i+2])) n++; } return n; };
+  for(const r of [res,rs]) for(const im of r.imgs) ok(sameImg(renderBlocksView(r,im).data,renderResult(r,im).data)===0,`blocchi = risultato: ${im.img.name}${r===rs?' (split)':''} (${r.blocks[im.img.target].length} blocchi)`);
+  // le parole a 16 bit codificano tile/flip/palette giusti
+  let wbad=0; for(const G of ['P','S']) for(const b of res.blocks[G]) b.entries.forEach((e,j)=>{ const w=b.words[j]; if(!e.bin){ if(w) wbad++; return; } if((w&0x3FF)!==tileNum(e.tile)||((w>>10)&3)!==e.flip||(w>>12)!==Math.max(0,slotOf(e.bin.g,e.bin.b))) wbad++; });
+  ok(wbad===0,'codifica voci blocco ('+wbad+' errori)');
+  // sfondo + sopra il giocatore
+  const tr=state.images.find(i=>i.name==='albero.png'), fi=state.images.find(i=>i.name==='fiori.png');
+  const fiTrans=fi.trans; fi.trans={mode:'none',color:null};
+  tr.bg={imageId:fi.id,bx:0,by:0}; tr.blockModes={'0,0':'top','1,0':'top'};
+  const rb=run([]), tim=rb.byId.get(tr.id), fim=rb.byId.get(fi.id);
+  const tv=renderBlocksView(rb,tim).data, tres=renderResult(rb,tim).data, fres=renderResult(rb,fim).data; let bgBad=0;
+  for(let y=0;y<tim.H;y++) for(let x=0;x<tim.W;x++){ const o=(y*tim.W+x)*4, src=tres[o+3]?o:((y%16)*fim.W+(x%16))*4, ref=tres[o+3]?tres:fres; if(tv[o]!==ref[src]||tv[o+1]!==ref[src+1]||tv[o+2]!==ref[src+2]||tv[o+3]!==255) bgBad++; }
+  ok(bgBad===0,'sfondo sotto le parti trasparenti ('+bgBad+' pixel diversi)');
+  const b00=tim.blocks[0], b01=tim.blocks[tim.bw];
+  ok(b00.attr===LAYER_NORMAL && b00.mode==='top' && b01.attr===LAYER_COVERED, `tipo layer: sopra=normale, sotto con sfondo=coperto`);
+  state.blockLayout='shape'; const rsh=run([]); state.blockLayout='compact';
+  ok(rsh.blocks.S.length%8===0 || rsh.blocks.S.length>=res.blocks.S.length, `forma: ${rsh.blocks.S.length} blocchi S (compatto ${res.blocks.S.length})`);
+  tr.bg=null; tr.blockModes={}; fi.trans=fiTrans;
+  // 3) consigli
+  state.result=res; await computeSuggestions();
+  log.push('consigli: '+state.suggestions.map(s=>s.kind+(s.after?` ${s.before.pals}->${s.after.pals} pal, ${s.before.colors}->${s.after.colors} col, maxD ${s.st.maxD.toFixed(1)}`:` n=${s.n}`)).join(' ; '));
+  for(const s of state.suggestions.filter(s=>s.subs)){ const r2=run([{kind:'sub',subs:s.subs}]); check(r2,'dopo '+s.kind); }
+  // 4) export: PNG indicizzato rileggibile e coerente
+  const files=await buildExport(res);
+  log.push('file: '+files.map(f=>f.name+' '+f.data.length+'b').join(', '));
+  const png=files.find(f=>f.name==='secondario_tileset.png');
+  const bmp=await createImageBitmap(new Blob([png.data]),{colorSpaceConversion:'none',premultiplyAlpha:'none'});
+  ok(bmp.width===128 && bmp.height===Math.ceil(res.groups.S.finals.length/16)*8,'PNG tileset '+bmp.width+'x'+bmp.height);
+  const z=zip(files); ok(z.size>0,'zip '+z.size+' byte');
+  // 5) tileset esistente: LZ77, JASC, analisi blocchi
+  const lzA=lz77Decompress(new Uint8Array([0x10,8,0,0, 0x00,1,2,3,4,5,6,7,8]));
+  const lzB=lz77Decompress(new Uint8Array([0x10,6,0,0, 0x10,0xAA,0xBB,0xCC,0x00,0x02]));
+  ok(lzA&&lzA.join()==='1,2,3,4,5,6,7,8' && lzB&&lzB.join()===[0xAA,0xBB,0xCC,0xAA,0xBB,0xCC].join(), 'LZ77: letterali e riferimenti');
+  const jascTxt='JASC-PAL\r\n0100\r\n16\r\n'+[...Array(16).keys()].map(i=>{ const r5=i*2,g5=31-i,b5=i; return `${r5*255/31|0} ${g5*255/31|0} ${b5*255/31|0}`; }).join('\r\n')+'\r\n';
+  const jp=parseJasc(jascTxt); ok(jp && jp.every((c,i)=>c===((i*2)|((31-i)<<5)|(i<<10))), 'JASC standard: colori riletti esatti');
+  const jh=parseJasc(jascTxt,true); ok(jh && jh.every((c,i)=>c===(i|((31-i)<<5)|((i*2)<<10))), 'JASC di HMA: rosso e blu rimessi a posto');
+  // tileset sintetico: primario tile 1 = indici 1..; secondario tile 0 = indici 3 e 5
+  const tPr=new Uint8Array(64); for(let i=0;i<32;i++) tPr[32+i]=0x21;            // tile 1: pixel 1 e 2
+  const tSe=new Uint8Array(32); for(let i=0;i<32;i++) tSe[i]=0x53;               // tile 640: pixel 3 e 5
+  const blk=new Uint8Array(3*18), bv=new DataView(blk.buffer);
+  bv.setUint16(0,(7<<12)|640,true);                                               // blocco 0: tile 640 pal 7
+  bv.setUint16(16+2,(2<<12)|1,true);                                              // blocco 1: tile 1 pal 2
+  // blocco 2: tutto zero -> vuoto
+  const saveEx=state.existing; state.existing={P:emptyEx(), S:emptyEx()};
+  addExistingFiles('P',[{name:'prim_tileset.bin',data:tPr}],true);
+  addExistingFiles('S',[{name:'sec_tileset.bin',data:tSe},{name:'sec_blocchi.bin',data:blk},{name:'07.pal',data:new TextEncoder().encode(jascTxt)}],true);
+  const ai=state.exInfo, gS=ai.groups.S;
+  ok(gS.blocks.length===3 && !gS.blocks[0].empty && !gS.blocks[1].empty && gS.blocks[2].empty, 'blocchi esistenti: vuoto riconosciuto');
+  ok([...(gS.usedIdx.get(7)||[])].sort().join()==='3,5' && [...(gS.usedIdx.get(2)||[])].sort().join()==='1,2', 'colori usati per palette');
+  ok(gS.unusedTiles.length===0 && ai.tS.length===1, 'tile del secondario tutti usati');
+  // 6) modalità aggiungi su dati sintetici: palette 8-12 complete, palette 7 con 2 colori usati e 13 liberi
+  const jFull='JASC-PAL\r\n0100\r\n16\r\n'+[...Array(16).keys()].map(i=>`${(i*16)%256} ${(255-i*16)&255} 128`).join('\r\n')+'\r\n';
+  addExistingFiles('S',[8,9,10,11,12].map(s=>({name:s.toString(16).toUpperCase().padStart(2,'0')+'.pal',data:new TextEncoder().encode(jFull)})),true);
+  const prevMode=state.mode, prevTargets=state.images.map(i=>i.target); state.mode='add'; state.images.forEach(i=>i.target='S');
+  ok(addActive(),'modalità aggiungi attiva con dati completi');
+  const ra=run([]); const gA=ra.groups.S;
+  let reconA=0; for(const im of ra.imgs){ const r=renderResult(ra,im).data; for(const cell of im.seq){ if(cell.ov) continue; for(let y=0;y<8;y++) for(let x=0;x<8;x++){ const c=im.px[(cell.ty*8+y)*im.W+cell.tx*8+x], o=((cell.ty*8+y)*im.W+cell.tx*8+x)*4; const got=r[o+3]?rgbToGba(r[o],r[o+1],r[o+2]):TRANSP; if(got!==c) reconA++; } } }
+  ok(reconA===0,'aggiungi: ricostruzione esatta ('+reconA+')');
+  const used7=gS.usedIdx.get(7); ok([...used7].every(i=>gA.pals[7][i]===state.existing.S.pals[7][i]),'aggiungi: colori usati della palette 7 intatti');
+  const plA=ra.blocks.place; ok([...plA.taken.keys()].every(s=>s>=gS.blocks.length||gS.blocks[s].empty),'aggiungi: blocchi piazzati solo in posti liberi ('+plA.taken.size+')');
+  ok(gA.finals.slice(0,ai.tS.length).every(f=>f.existing),'aggiungi: tile esistenti al loro posto');
+  ok(fnv32([0x61])===0xE40C292C && fnv32([])===0x811C9DC5, 'impronta FNV-1a come in Python');
+  const addScript=buildHmaAdd(ra,[4,0]); ok(addScript.includes('TS_MODE = "add"') && addScript.includes('"exTiles":'+ai.tS.length), 'script "aggiungi" generato');
+  state.mode=prevMode; state.images.forEach((i,k)=>i.target=prevTargets[k]);
+  state.existing=saveEx; state.exInfo=analyzeExisting();
+  $('#selftest').hidden=false; $('#selftest').textContent=log.join('\n');
+  document.title=log.some(l=>l.startsWith('FAIL'))?'SELFTEST FAIL':'SELFTEST OK';
+}
+(async()=>{
+  const q=location.search;
+  if(q.includes('selftest')){ try{ await selftest(); }catch(e){ $('#selftest').hidden=false; $('#selftest').textContent='ERRORE '+e.stack; } return; }
+  if(q.includes('demo')){ await loadDemo(); }
+  recompute();
+})();
+</script>
+</body>
+</html>
